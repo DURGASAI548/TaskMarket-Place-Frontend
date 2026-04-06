@@ -84,7 +84,7 @@ const AddOrganization = () => {
                                     </> :
                                         <>
                                             <FiSave size={16} className='me-2' />
-                                            <span>Add Organization..</span></>
+                                            <span>Add Organization</span></>
                                 }
                             </button>
                         </div>
