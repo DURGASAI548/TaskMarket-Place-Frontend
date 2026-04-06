@@ -13,6 +13,7 @@ import Loading from '@/components/shared/Loading'
 import topTost from '@/utils/topTost';
 import { FiLayers, FiSave } from 'react-icons/fi'
 import { RotatingLines } from 'react-loader-spinner'
+import axios from 'axios'
 
 
 // import AddProposal from './AddProposal'
@@ -26,8 +27,24 @@ const previtems = [
     },
 ]
 const AddOrganization = () => {
-    const handleClick = () => {
-        topTost("success", "Added Successfully")
+    const HandleClick = async() => {
+        setloading(true)
+        try {
+            const result = await axios.get("https://taskmarket-place-backend.onrender.com/api/login", {
+                withCredentials: true
+            })
+            console.log(result)
+            setloading(false)
+
+            topTost("success", "API CALL DONE")
+
+        }
+        catch(err){
+            setloading(false)
+            topTost("error", "API CALL not DONE")
+            console.log(err)
+        }
+
     };
     const [selectedOption, setSelectedOption] = useState(null);
     const [loading, setloading] = useState(false)
@@ -67,13 +84,13 @@ const AddOrganization = () => {
                             </div>
                         </div>
                         <div className='col-12 d-flex justify-content-end mt-4'>
-                            <button className="btn btn-primary" onClick={() => handleClick()} disabled={loading}>
+                            <button className="btn btn-primary" onClick={HandleClick} disabled={loading}>
                                 {
                                     loading ? <>
                                         <RotatingLines
                                             visible={true}
-                                            height="32"
-                                            width="32"
+                                            height="30"
+                                            width="30"
                                             color="white"
                                             strokeWidth="5"
                                             animationDuration="0.75"

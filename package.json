@@ -17,6 +17,7 @@
     "@popperjs/core": "^2.11.8",
     "@tanstack/react-table": "^8.20.5",
     "apexcharts": "^4.3.0",
+    "axios": "^1.14.0",
     "bootstrap": "^5.3.3",
     "date-fns": "^4.1.0",
     "emoji-picker-react": "^4.12.0",
