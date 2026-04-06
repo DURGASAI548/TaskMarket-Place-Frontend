@@ -11,8 +11,9 @@ const page = () => {
                             <img src="/images/logo-abbr.png" alt="img" className="img-fluid" />
                         </div>
                         <div className="card-body p-sm-5">
-                            <LoginForm registerPath={"/authentication/register/minimal"} resetPath={"/authentication/reset/minimal"} />
+                            <LoginForm registerPath={"/"} resetPath={"/authentication/reset/minimal"} />
                         </div>
+                        
                     </div>
                 </div>
             </div>
