@@ -17,6 +17,7 @@
     "@popperjs/core": "^2.11.8",
     "@tanstack/react-table": "^8.20.5",
     "apexcharts": "^4.3.0",
+    "axios": "^1.14.0",
     "bootstrap": "^5.3.3",
     "date-fns": "^4.1.0",
     "emoji-picker-react": "^4.12.0",
@@ -40,6 +41,7 @@
     "react-tooltip": "^5.28.0",
     "sass": "^1.83.1",
     "sweetalert2": "^11.14.1",
-    "sweetalert2-react-content": "^5.0.7"
+    "sweetalert2-react-content": "^5.0.7",
+    "zustand": "^5.0.12"
   }
 }
