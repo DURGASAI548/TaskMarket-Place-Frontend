@@ -1,11 +1,13 @@
 'use client'
 import React, { useState, useEffect, useRef } from 'react'
-import SelectDropdown from '@/components/shared/SelectDropdown'
+import { useParams, useRouter } from 'next/navigation'
 import topTost from '@/utils/topTost'
-import { FiSave } from 'react-icons/fi'
 import { RotatingLines } from 'react-loader-spinner'
+import SelectDropdown from '@/components/shared/SelectDropdown'
+import { FiSave } from 'react-icons/fi'
 import axios from 'axios'
 
+// ── Validation Rules ──────────────────────────────────────
 const validateOrgName = (value) => {
   const trimmed = value.trim()
   if (!trimmed) return 'Organization name is required'
@@ -29,52 +31,109 @@ const validateDescription = (value) => {
   return ''
 }
 
-const AddOrganization = () => {
+// ── Component ─────────────────────────────────────────────
+const EditOrganizations = () => {
+  const params = useParams()
+  const router = useRouter()
+  const id = params.id
+
+  // ── Form State ────────────────────────────────────────
   const [formData, setFormData] = useState({
     orgName: '',
     orgAdmin: null,
     description: '',
   })
+
   const [errors, setErrors] = useState({
     orgName: '',
     orgAdmin: '',
     description: '',
   })
+
   const [touched, setTouched] = useState({
     orgName: false,
     orgAdmin: false,
     description: false,
   })
+
+  // ── UI State ──────────────────────────────────────────
   const [currencyOptionsData_1, setCurrencyOptionsData_1] = useState([])
   const [submittingloading, setSubmittingLoading] = useState(false)
   const [loadingusers, setLoadingUsers] = useState(false)
+  const [loadingOrgData, setLoadingOrgData] = useState(true)
+  const [fetchError, setFetchError] = useState('')
+
   const orgNameRef = useRef(null)
   const descriptionRef = useRef(null)
 
+
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchAll = async () => {
       try {
+        setLoadingOrgData(true)
         setLoadingUsers(true)
-        const result = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/get-normal-users`,
-          { withCredentials: true }
-        )
-        const data = result.data.data.map((ele) => ({
+        setFetchError('')
+
+        const [usersRes, orgRes] = await Promise.all([
+          axios.get(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/get-normal-users`,
+            { withCredentials: true }
+          ),
+          axios.get(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/get-organization-id/${id}`,
+            { withCredentials: true }
+          ),
+        ])
+
+        
+        const usersData = usersRes.data.data.map((ele) => ({
           value: ele._id,
           label: ele.name,
           img: ele.profileURL,
         }))
+        setCurrencyOptionsData_1(usersData)
 
-        setCurrencyOptionsData_1(data)
+        
+        const org = orgRes.data.data
+
+        
+        const adminId =
+          typeof org.orgAdminUser === 'object' && org.orgAdminUser !== null
+            ? org.orgAdminUser._id
+            : org.orgAdminUser || null
+
+        
+        if (adminId && !usersData.find((u) => u.value === adminId)) {
+          const adminObj = org.orgAdminUser
+          usersData.unshift({
+            value: adminId,
+            label:
+              typeof adminObj === 'object'
+                ? adminObj.name || adminObj.email || 'Unknown User'
+                : 'Previous Admin',
+            img:
+              typeof adminObj === 'object' ? adminObj.profileURL || '' : '',
+          })
+          setCurrencyOptionsData_1([...usersData])
+        }
+
+        setFormData({
+          orgName: org.orgName || '',
+          orgAdmin: adminId,
+          description: org.orgDescription || '',
+        })
       } catch (err) {
-        console.log('Failed to fetch users:', err)
-        topTost?.('error','Failed to load users. Please refresh.')
+        console.error('Failed to load data:', err)
+        setFetchError('Failed to load organization data. Please try again.')
+        topTost?.('error', 'Failed to load data. Please refresh.')
       } finally {
+        setLoadingOrgData(false)
         setLoadingUsers(false)
       }
     }
-    fetchUsers()
-  }, [])
+
+    if (id) fetchAll()
+  }, [id])
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -109,52 +168,53 @@ const AddOrganization = () => {
   }
 
   const handleSubmit = async () => {
-    setTouched({
-      orgName: true,
-      orgAdmin: true,
-      description: true,
-    })
+    setTouched({ orgName: true, orgAdmin: true, description: true })
+
     const orgNameError = validateOrgName(formData.orgName)
     const orgAdminError = validateAdmin(formData.orgAdmin)
     const descriptionError = validateDescription(formData.description)
-    const newErrors = {
+
+    setErrors({
       orgName: orgNameError,
       orgAdmin: orgAdminError,
       description: descriptionError,
-    }
-    setErrors(newErrors)
+    })
+
     if (orgNameError) {
       orgNameRef.current?.focus()
       return
     }
-    if (orgAdminError) {
-      return
-    }
+    if (orgAdminError) return
     if (descriptionError) {
       descriptionRef.current?.focus()
       return
     }
+
     const payload = {
       orgName: formData.orgName.trim(),
       orgAdminUser: formData.orgAdmin,
       orgDescription: formData.description.trim(),
     }
+
     try {
       setSubmittingLoading(true)
-      const result = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/add-organization`,
+
+      await axios.put(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/edit-organizations/${id}`,
         payload,
         { withCredentials: true }
       )
-      topTost?.('Organization created successfully!', 'success')
-      setFormData({ orgName: '', orgAdmin: null, description: '' })
+
+      topTost?.('success', 'Organization updated successfully!')
+
       setTouched({ orgName: false, orgAdmin: false, description: false })
       setErrors({ orgName: '', orgAdmin: '', description: '' })
     } catch (err) {
-      console.log('Failed to create organization:', err)
+      console.error('Failed to update organization:', err)
       const message =
-        err?.response?.data?.message || 'Failed to create organization. Please try again.'
-      topTost?.( 'error',message)
+        err?.response?.data?.message ||
+        'Failed to update organization. Please try again.'
+      topTost?.('error', message)
     } finally {
       setSubmittingLoading(false)
     }
@@ -162,13 +222,52 @@ const AddOrganization = () => {
 
   const descCharCount = formData.description.trim().length
 
+  if (loadingOrgData) {
+    return (
+      <div className="col-xl-8">
+        <div className="card stretch stretch-full">
+          <div className="card-body d-flex flex-column align-items-center justify-content-center py-5">
+            <RotatingLines
+              visible={true}
+              height="40"
+              width="40"
+              color="blue"
+              strokeWidth="5"
+              animationDuration="0.75"
+              ariaLabel="rotating-lines-loading"
+            />
+            <p className="text-muted mt-3 mb-0">Loading organization data...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (fetchError) {
+    return (
+      <div className="col-xl-8">
+        <div className="card stretch stretch-full">
+          <div className="card-body d-flex flex-column align-items-center justify-content-center py-5">
+            <p className="text-danger mb-3">{fetchError}</p>
+            <button
+              className="btn btn-outline-primary btn-sm"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       <div className="col-xl-8">
         <div className="card stretch stretch-full">
           <div className="card-body">
-            <h5>Add Organization</h5>
-            {/* <h6></h6> */}
+            <h5>Edit Organization</h5>
+
             <div>
               <div className="row">
                 <div className="col-lg-6 mb-4">
@@ -207,8 +306,9 @@ const AddOrganization = () => {
                         strokeWidth="5"
                         animationDuration="0.75"
                         ariaLabel="rotating-lines-loading"
-                      /> &nbsp;
-                      <span>Bringing all the users</span>
+                      />
+                      &nbsp;
+                      <span className="text-muted">Loading users...</span>
                     </div>
                   ) : (
                     <>
@@ -245,13 +345,10 @@ const AddOrganization = () => {
                   <textarea
                     ref={descriptionRef}
                     rows={5}
-                    className={`form-control 
-                    `}
+                    className={`form-control`}
                     placeholder="Enter organization description (min 10 characters)"
                     value={formData.description}
-                    onChange={(e) =>
-                      handleChange('description', e.target.value)
-                    }
+                    onChange={(e) => handleChange('description', e.target.value)}
                     onBlur={() => handleBlur('description')}
                     disabled={submittingloading}
                     maxLength={500}
@@ -293,7 +390,7 @@ const AddOrganization = () => {
                 ) : (
                   <>
                     <FiSave size={16} className="me-2" />
-                    <span>Add Organization</span>
+                    <span>Save Changes</span>
                   </>
                 )}
               </button>
@@ -305,4 +402,4 @@ const AddOrganization = () => {
   )
 }
 
-export default AddOrganization
+export default EditOrganizations

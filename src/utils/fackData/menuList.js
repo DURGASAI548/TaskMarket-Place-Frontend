@@ -24,7 +24,7 @@ export const menuList = [
                     {
                         id: 2,
                         name: "Edit Organization",
-                        path: "",
+                        path: "/edit-organizations",
                     },
                 
                 ]
