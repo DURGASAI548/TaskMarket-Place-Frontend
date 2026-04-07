@@ -8,28 +8,17 @@ export const menuList = [
             {
                 id: 1,
                 name: "View Organization",
-                path: "#",
+                path: "/view-organizations",
                 subdropdownMenu: false
             },
             {
                 id: 2,
-                name: "Update Organization",
-                path: "#",
-                subdropdownMenu: [
-                    {
-                        id: 1,
-                        name: "Add Organization",
-                        path: "/add-organizations",
-                    },
-                    {
-                        id: 2,
-                        name: "Edit Organization",
-                        path: "/edit-organizations",
-                    },
-                
-                ]
-            },
-           
+                name: "Add Organization",
+                path: "/add-organizations",
+                subdropdownMenu: false
+
+            }
+
         ]
     },
     {
@@ -540,7 +529,7 @@ export const menuList = [
                 id: 1,
                 name: "Support",
                 path: "https://wrapbootstrap.com/user/theme_ocean",
-                target:"_blank",
+                target: "_blank",
                 subdropdownMenu: false
             },
             {
@@ -553,7 +542,7 @@ export const menuList = [
                 id: 3,
                 name: "Documentations",
                 path: "https://duralux-next-doc.vercel.app/",
-                target:"_blank",
+                target: "_blank",
                 subdropdownMenu: false
             }
         ]
@@ -585,12 +574,12 @@ export const menuList = [
                         name: "Edit Organization",
                         path: "",
                     },
-                
+
                 ]
             },
-           
+
         ]
     }
-    
-    
+
+
 ]
