@@ -1,5 +1,38 @@
 export const menuList = [
     {
+        id: 12,
+        name: "Organizations",
+        path: "#",
+        icon: 'feather-power',
+        dropdownMenu: [
+            {
+                id: 1,
+                name: "View Organization",
+                path: "#",
+                subdropdownMenu: false
+            },
+            {
+                id: 2,
+                name: "Update Organization",
+                path: "#",
+                subdropdownMenu: [
+                    {
+                        id: 1,
+                        name: "Add Organization",
+                        path: "/add-organizations",
+                    },
+                    {
+                        id: 2,
+                        name: "Edit Organization",
+                        path: "",
+                    },
+                
+                ]
+            },
+           
+        ]
+    },
+    {
         id: 0,
         name: "dashboards",
         path: "#",
@@ -525,5 +558,39 @@ export const menuList = [
             }
         ]
     },
+    {
+        id: 10,
+        name: "Organization",
+        path: "#",
+        icon: 'feather-power',
+        dropdownMenu: [
+            {
+                id: 1,
+                name: "View Organization",
+                path: "#",
+                subdropdownMenu: false
+            },
+            {
+                id: 2,
+                name: "Update Organization",
+                path: "#",
+                subdropdownMenu: [
+                    {
+                        id: 1,
+                        name: "Add Organization",
+                        path: "/add-organizations",
+                    },
+                    {
+                        id: 2,
+                        name: "Edit Organization",
+                        path: "",
+                    },
+                
+                ]
+            },
+           
+        ]
+    }
+    
     
 ]
