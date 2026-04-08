@@ -21,6 +21,29 @@ export const menuList = [
 
         ]
     },
+     {
+        id: 13,
+        name: "Branches",
+        path: "#",
+        icon: 'feather-power',
+        dropdownMenu: [
+            {
+                id: 1,
+                name: "View Branches",
+                path: "/view-branches",
+                subdropdownMenu: false
+            },
+            {
+                id: 2,
+                name: "Add Branches",
+                path: "/add-branches",
+                subdropdownMenu: false
+
+            }
+
+        ]
+    },
+    
     {
         id: 0,
         name: "dashboards",
