@@ -212,7 +212,7 @@ const ViewBranches = () => {
                             Get started by creating your first branch to organize users and tasks.
                         </p>
                         <Link
-                            href="/add-branch"
+                            href="/add-branches"
                             className="btn btn-primary btn-sm d-flex align-items-center"
                         >
                             <FiPlus size={14} className="me-2" />
@@ -500,7 +500,7 @@ const ViewBranches = () => {
                                             </button>
                                         ) : (
                                             <Link
-                                                href={`/edit-branch/${branch._id}`}
+                                                href={`/edit-branches/${branch._id}`}
                                                 className="w-50 btn btn-primary d-flex align-items-center justify-content-center"
                                             >
                                                 <FiEdit size={14} className="me-2" />
