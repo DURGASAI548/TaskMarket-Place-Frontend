@@ -36,10 +36,10 @@ const validateEmail = (value) => {
 
 const validateUsername = (value) => {
     const trimmed = value.trim()
-    if (!trimmed) return 'Username is required'
-    if (trimmed.length < 3) return 'Username must be at least 3 characters'
-    if (trimmed.length > 50) return 'Username must be under 50 characters'
-    if (!/^[a-zA-Z0-9._-]+$/.test(trimmed)) return 'Username can only contain letters, numbers, dots, hyphens, and underscores'
+    if (!trimmed) return 'Display name is required'
+    if (trimmed.length < 3) return 'Display name must be at least 3 characters'
+    if (trimmed.length > 50) return 'Display name must be under 50 characters'
+    if (!/^[a-zA-Z0-9\s._-]+$/.test(trimmed)) return 'Display name contains invalid characters'
     return ''
 }
 
@@ -392,13 +392,13 @@ const AddUsers = () => {
 
         const formData = new FormData()
         formData.append('name', singleForm.name.trim())
-        formData.append('rollNumber', singleForm.rollNumber.trim())
         formData.append('email', singleForm.email.trim())
-        formData.append('orgId', singleForm.organization)
-        formData.append('branchId', singleForm.branch)
-        formData.append('username', singleForm.username.trim())
-        formData.append('phone', singleForm.phone.trim())
-        if (avatarFile) formData.append('avatar', avatarFile)
+        formData.append('displayName', singleForm.username.trim())
+        formData.append('rollNo', singleForm.rollNumber.trim())
+        formData.append('phoneNo', singleForm.phone.trim())
+        formData.append('org', singleForm.organization)
+        formData.append('branch', singleForm.branch)
+        if (avatarFile) formData.append('profile', avatarFile)
 
         try {
             setSubmitting(true)
@@ -767,14 +767,14 @@ const AddUsers = () => {
                             <SectionDivider
                                 icon={FiTag}
                                 title="Account Details"
-                                subtitle="Login credentials for the user"
+                                subtitle="Display name for the user's profile"
                             />
 
                             <div className="row">
                                 <div className="col-md-6">
                                     <InputRow
-                                        label="Username" icon={FiUser} fieldKey="username" inputRef={usernameRef}
-                                        placeholder="Enter username" maxLength={50}
+                                        label="Display Name" icon={FiUser} fieldKey="username" inputRef={usernameRef}
+                                        placeholder="Enter display name" maxLength={50}
                                         value={singleForm.username} touched={singleTouched.username} error={singleErrors.username}
                                         onChange={handleSingleChange} onBlur={handleSingleBlur} disabled={submitting}
                                     />
