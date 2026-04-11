@@ -49,14 +49,12 @@ const SkeletonCard = () => (
     </div>
 )
 
-// ── Main Component ────────────────────────────────────────
 const ViewBranches = () => {
     const [branchData, setBranchData] = useState(null)
     const [loading, setLoading] = useState(true)
     const [fetchError, setFetchError] = useState('')
     const [deletingId, setDeletingId] = useState(null)
 
-    // ── Filter State ────────────────────────────────────
     const [searchQuery, setSearchQuery] = useState('')
     const [filterType, setFilterType] = useState('all') // 'all' | 'admin' | 'org'
 
@@ -84,7 +82,6 @@ const ViewBranches = () => {
             .join('') || '?'
     }
 
-    // ── Fetch Branches ──────────────────────────────────
     const fetchBranches = async () => {
         try {
             setLoading(true)
@@ -110,7 +107,6 @@ const ViewBranches = () => {
         fetchBranches()
     }, [])
 
-    // ── Filtered Data ───────────────────────────────────
     const filteredData = useMemo(() => {
         if (!branchData) return null
         if (!searchQuery.trim()) return branchData
@@ -124,12 +120,10 @@ const ViewBranches = () => {
 
             if (filterType === 'admin') return adminName.includes(query)
             if (filterType === 'org') return orgName.includes(query)
-            // 'all' — search across branch name, admin name, and org name
             return branchName.includes(query) || adminName.includes(query) || orgName.includes(query)
         })
     }, [branchData, searchQuery, filterType])
 
-    // ── Delete Handler ──────────────────────────────────
     const handleDelete = async (id) => {
         if (deletingId) return
 
@@ -155,7 +149,6 @@ const ViewBranches = () => {
 
     const isAnyDeleting = deletingId !== null
 
-    // ── Loading State ───────────────────────────────────
     if (loading) {
         return (
             <div className="row">
@@ -166,7 +159,6 @@ const ViewBranches = () => {
         )
     }
 
-    // ── Error State ─────────────────────────────────────
     if (fetchError) {
         return (
             <div className="col-12">
@@ -195,7 +187,6 @@ const ViewBranches = () => {
         )
     }
 
-    // ── Empty State ─────────────────────────────────────
     if (!branchData || branchData.length === 0) {
         return (
             <div className="col-12">
@@ -224,10 +215,8 @@ const ViewBranches = () => {
         )
     }
 
-    // ── Data Loaded ─────────────────────────────────────
     return (
         <>
-            {/* ── Header Bar ─────────────────────────────── */}
             <div className="col-12 d-flex flex-wrap justify-content-between align-items-center mb-3">
                 <div>
                     <h5 className="fw-bold mb-0">Branches</h5>
@@ -244,7 +233,6 @@ const ViewBranches = () => {
                 </Link>
             </div>
 
-            {/* ── Filter Bar ─────────────────────────────── */}
             <div className="col-12 mb-4">
                 <div className="card border-0 shadow-sm">
                     <div className="card-body py-3">
@@ -303,7 +291,6 @@ const ViewBranches = () => {
                             </div>
                         </div>
 
-                        {/* Active filter info */}
                         {searchQuery.trim() && (
                             <div className="mt-2 d-flex align-items-center">
                                 <span className="fs-12 text-muted">
@@ -327,7 +314,6 @@ const ViewBranches = () => {
                 </div>
             </div>
 
-            {/* ── No Results State ───────────────────────── */}
             {filteredData && filteredData.length === 0 && (
                 <div className="col-12">
                     <div className="card border-0 shadow-sm">
@@ -354,7 +340,6 @@ const ViewBranches = () => {
                 </div>
             )}
 
-            {/* ── Cards Grid ─────────────────────────────── */}
             <div className="row">
                 {filteredData && filteredData.map((branch) => {
                     const isThisDeleting = deletingId === branch._id
@@ -371,7 +356,6 @@ const ViewBranches = () => {
                             >
                                 <div className="card-body d-flex flex-column">
 
-                                    {/* ── Header: Initials + Branch Name ──── */}
                                     <div className="d-flex align-items-start mb-3">
                                         <div
                                             className="rounded-3 d-flex align-items-center justify-content-center flex-shrink-0 me-3"
@@ -400,8 +384,6 @@ const ViewBranches = () => {
                                             </span>
                                         </div>
                                     </div>
-
-                                    {/* ── Admin Info ─────────────────────── */}
                                     <div className="d-flex align-items-center mb-3 p-2 rounded-2" style={{ background: '#f9fafb' }}>
                                         {branch.adminProfileURL ? (
                                             <Image
@@ -436,7 +418,6 @@ const ViewBranches = () => {
                                         </div>
                                     </div>
 
-                                    {/* ── Stats Row ─────────────────────── */}
                                     <div className="d-flex gap-2 mb-3">
                                         <div className="flex-fill py-2 px-2 rounded-2 text-center border border-dashed border-gray-5">
                                             <div className="d-flex align-items-center justify-content-center mb-1">
@@ -454,7 +435,6 @@ const ViewBranches = () => {
                                         </div>
                                     </div>
 
-                                    {/* ── Created Date ──────────────────── */}
                                     {branch.createdAt && (
                                         <p className="fs-11 text-muted mb-3">
                                             Created {new Date(branch.createdAt).toLocaleDateString('en-US', {
@@ -465,7 +445,6 @@ const ViewBranches = () => {
                                         </p>
                                     )}
 
-                                    {/* ── Action Buttons ────────────────── */}
                                     <div className="d-flex gap-2 mt-auto">
                                         <button
                                             className="w-50 btn btn-light-brand d-flex align-items-center justify-content-center"

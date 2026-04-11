@@ -64,14 +64,14 @@ const TabPassword = () => {
                     icon={FiEye}
                     title={"Enable 2-step authentication"}
                     description={"Protects you against password theft by requesting an authentication code via SMS on every login."}
-                    isChecked={false}
+                    isChecked={true}
                     id="one"
                 />
                 <Card
                     icon={FiShield}
                     title={"Ask to change password on every 6 months"}
                     description={"A simple but an effective way to be protected against data leaks and password theft."}
-                    isChecked={false}
+                    isChecked={true}
                     id="two"
                 />
             </div>

@@ -43,6 +43,28 @@ export const menuList = [
 
         ]
     },
+    {
+        id: 14,
+        name: "Users",
+        path: "#",
+        icon: 'feather-users',
+        dropdownMenu: [
+            {
+                id: 1,
+                name: "View Users",
+                path: "/view-users",
+                subdropdownMenu: false
+            },
+            {
+                id: 2,
+                name: "Add Users",
+                path: "/add-users",
+                subdropdownMenu: false
+
+            }
+
+        ]
+    },
     
     {
         id: 0,
