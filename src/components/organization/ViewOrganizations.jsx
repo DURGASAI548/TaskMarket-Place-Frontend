@@ -211,7 +211,7 @@ const ViewOrganizations = () => {
                     </p>
                 </div>
                 <Link
-                    href="/add-organization"
+                    href="/add-organizations"
                     className="btn btn-primary btn-sm d-flex align-items-center"
                 >
                     <FiPlus size={14} className="me-2" />
