@@ -229,7 +229,7 @@ const ViewUsers = ({ title = 'Users' }) => {
     return (
         <div className="col-xxl-12">
             <div className={`card stretch stretch-full ${isExpanded ? 'card-expand' : ''} ${refreshKey ? 'card-loading' : ''}`}>
-                <CardHeader title={title} refresh={handleRefresh} remove={handleCardDelete} expanded={handleExpand} />
+                {/* <CardHeader title={title} refresh={handleRefresh} remove={handleCardDelete} expanded={handleExpand} /> */}
 
                 {/* ── Search & Filter Bar ─────────────────── */}
                 {!loading && !fetchError && users && users.length > 0 && (
@@ -292,7 +292,7 @@ const ViewUsers = ({ title = 'Users' }) => {
 
                             {/* Add user button */}
                             <div className="col-lg-2 col-md-2 text-end">
-                                <Link href="/add-user" className="btn btn-sm btn-primary">
+                                <Link href="/add-users" className="btn btn-sm btn-primary">
                                     <FiPlus size={14} className="me-1" />
                                     Add User
                                 </Link>
@@ -405,7 +405,7 @@ const ViewUsers = ({ title = 'Users' }) => {
                                             >
                                                 {console.log(process.env.NEXT_PUBLIC_S3_BASE_URL,"/",user.profileURL)}
                                                 {/* User: avatar + name + email */}
-                                                {/* <td>
+                                                <td>
                                                     <div className="d-flex align-items-center gap-3">
                                                         {hasValidImage(user.profileURL) ? (
                                                             <div className="avatar-image">
@@ -413,7 +413,7 @@ const ViewUsers = ({ title = 'Users' }) => {
                                                                     width={38}
                                                                     height={38}
                                                                     sizes="100vw"
-                                                                    src={`${process.env.NEXT_PUBLIC_S3_BASE_URL}/${user.profileURL}`}
+                                                                    src={`${process.env.NEXT_PUBLIC_S3_BASE_URL}${user.profileURL}`}
                                                                     alt={user.name || 'user'}
                                                                     className="img-fluid"
                                                                     style={{ objectFit: 'cover', borderRadius: '50%' }}
@@ -434,7 +434,7 @@ const ViewUsers = ({ title = 'Users' }) => {
                                                             <span className="fs-12 d-block fw-normal text-muted">{user.email}</span>
                                                         </div>
                                                     </div>
-                                                </td> */}
+                                                </td>
 
                                                 {/* Roll No */}
                                                 <td>

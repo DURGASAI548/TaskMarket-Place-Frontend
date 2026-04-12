@@ -15,12 +15,12 @@ const ProfileModal = () => {
                     <div className="d-flex align-items-center">
                         <Image width={40} height={40} src="/images/avatar/1.png" alt="user-image" className="img-fluid user-avtar" />
                         <div>
-                            <h6 className="text-dark mb-0">Alexandra Della <span className="badge bg-soft-success text-success ms-1">PRO</span></h6>
-                            <span className="fs-12 fw-medium text-muted">alex.della@outlook.com</span>
+                            <h6 className="text-dark mb-0">Default User <span className="badge bg-soft-success text-success ms-1">PRO</span></h6>
+                            <span className="fs-12 fw-medium text-muted">defaultUser@outlook.com</span>
                         </div>
                     </div>
                 </div>
-                <div className="dropdown">
+                {/* <div className="dropdown">
                     <a href="#" className="dropdown-item" data-bs-toggle="dropdown">
                         <span className="hstack">
                             <i className="wd-10 ht-10 border border-2 border-gray-1 bg-success rounded-circle me-2"></i>
@@ -74,8 +74,8 @@ const ProfileModal = () => {
 
                     </div>
                 </div>
-                <div className="dropdown-divider"></div>
-                <a href="#" className="dropdown-item">
+                <div className="dropdown-divider"></div> */}
+                {/* <a href="#" className="dropdown-item">
                     <i ><FiUser /></i>
                     <span>Profile Details</span>
                 </a>
@@ -94,7 +94,7 @@ const ProfileModal = () => {
                 <a href="#" className="dropdown-item">
                     <i><FiSettings /></i>
                     <span>Account Settings</span>
-                </a>
+                </a> */}
                 <div className="dropdown-divider"></div>
                 <a href="./auth-login-minimal.html" className="dropdown-item">
                     <i> <FiLogOut /></i>

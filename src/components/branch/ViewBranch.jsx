@@ -217,7 +217,7 @@ const ViewBranches = () => {
 
     return (
         <>
-            <div className="col-12 d-flex flex-wrap justify-content-between align-items-center mb-3">
+            {/* <div className="col-12 d-flex flex-wrap justify-content-between align-items-center mb-3">
                 <div>
                     <h5 className="fw-bold mb-0">Branches</h5>
                     <p className="text-muted fs-12 mb-0">
@@ -231,13 +231,12 @@ const ViewBranches = () => {
                     <FiPlus size={14} className="me-2" />
                     Add Branch
                 </Link>
-            </div>
+            </div> */}
 
-            <div className="col-12 mb-4">
+            {/* <div className="col-12 mb-4">
                 <div className="card border-0 shadow-sm">
                     <div className="card-body py-3">
                         <div className="row align-items-center g-2">
-                            {/* Search Input */}
                             <div className="col-lg-6 col-md-7">
                                 <div className="position-relative">
                                     <FiSearch
@@ -270,7 +269,6 @@ const ViewBranches = () => {
                                 </div>
                             </div>
 
-                            {/* Filter Buttons */}
                             <div className="col-lg-6 col-md-5 d-flex gap-2 justify-content-md-end">
                                 {[
                                     { key: 'all', label: 'All' },
@@ -312,7 +310,7 @@ const ViewBranches = () => {
                         )}
                     </div>
                 </div>
-            </div>
+            </div> */}
 
             {filteredData && filteredData.length === 0 && (
                 <div className="col-12">
@@ -385,9 +383,10 @@ const ViewBranches = () => {
                                         </div>
                                     </div>
                                     <div className="d-flex align-items-center mb-3 p-2 rounded-2" style={{ background: '#f9fafb' }}>
+                                        {console.log(process.env.NEXT_PUBLIC_S3_BASE_URL,branch.adminProfileURL)}
                                         {branch.adminProfileURL ? (
                                             <Image
-                                                src={branch.adminProfileURL}
+                                                src={`${process.env.NEXT_PUBLIC_S3_BASE_URL}${branch.adminProfileURL}`}
                                                 alt={branch.adminName || 'Admin'}
                                                 width={32}
                                                 height={32}

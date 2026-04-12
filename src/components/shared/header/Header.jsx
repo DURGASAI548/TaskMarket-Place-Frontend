@@ -51,11 +51,11 @@ const Header = () => {
                 document.querySelector('.navigation-up-1600').style.display = 'none';
                 document.querySelector('.navigation-down-1600').style.display = 'block';
             }
-            else {
-                document.documentElement.classList.remove('minimenu');
-                document.querySelector('.navigation-up-1600').style.display = 'block';
-                document.querySelector('.navigation-down-1600').style.display = 'none';
-            }
+            // else {
+            //     document.documentElement.classList.remove('minimenu');
+            //     document.querySelector('.navigation-up-1600').style.display = 'block';
+            //     document.querySelector('.navigation-down-1600').style.display = 'none';
+            // }
         };
 
         window.addEventListener('resize', handleResize);
@@ -130,8 +130,7 @@ const Header = () => {
         <header className="nxl-header">
             <div className="header-wrapper">
                 {/* <!--! [Start] Header Left !--> */}
-                <div className="header-left d-flex align-items-center gap-4">
-                    {/* <!--! [Start] nxl-head-mobile-toggler !--> */}
+                {/* <div className="header-left d-flex align-items-center gap-4">
                     <a href="#" className="nxl-head-mobile-toggler" onClick={(e) => {e.preventDefault(), setNavigationOpen(true)}} id="mobile-collapse">
                         <div className={`hamburger hamburger--arrowturn ${navigationOpen ? "is-active" : ""}`}>
                             <div className="hamburger-box">
@@ -139,8 +138,6 @@ const Header = () => {
                             </div>
                         </div>
                     </a>
-                    {/* <!--! [Start] nxl-head-mobile-toggler !-->
-                    <!--! [Start] nxl-navigation-toggle !--> */}
                     <div className="nxl-navigation-toggle navigation-up-1600">
                         <a href="#" onClick={(e) => handleNavigationExpendUp(e, "show")} id="menu-mini-button" ref={miniButtonRef} style={{ display: navigationExpend ? "none" : "block" }}>
                             <FiAlignLeft size={24} />
@@ -157,15 +154,11 @@ const Header = () => {
                             <FiArrowRight size={24} />
                         </a>
                     </div>
-                    {/* <!--! [End] nxl-navigation-toggle !-->
-                    <!--! [Start] nxl-lavel-mega-menu-toggle !--> */}
                     <div className="nxl-lavel-mega-menu-toggle d-flex d-lg-none">
                         <a href="#" onClick={(e) => {e.preventDefault(), setOpenMegaMenu(true)}} id="nxl-lavel-mega-menu-open">
                             <FiAlignLeft size={24} />
                         </a>
                     </div>
-                    {/* <!--! [End] nxl-lavel-mega-menu-toggle !-->
-                    <!--! [Start] nxl-lavel-mega-menu !--> */}
                     <div className="nxl-drp-link nxl-lavel-mega-menu">
                         <div className="nxl-lavel-mega-menu-toggle d-flex d-lg-none">
                             <a href="#" onClick={(e) => {e.preventDefault(), setOpenMegaMenu(false)}} id="nxl-lavel-mega-menu-hide">
@@ -173,19 +166,18 @@ const Header = () => {
                                 <span>Back</span>
                             </a>
                         </div>
-                        {/* <!--! [Start] nxl-lavel-mega-menu-wrapper !--> */}
                         <div className="nxl-lavel-mega-menu-wrapper d-flex gap-3">
                             <HeaderDropDownModal />
                             <MegaMenu />
                         </div>
                     </div>
-                </div>
+                </div> */}
                 {/* <!--! [End] Header Left !-->
                 <!--! [Start] Header Right !--> */}
                 <div className="header-right ms-auto">
                     <div className="d-flex align-items-center">
-                        <SearchModal />
-                        <LanguagesModal />
+                        {/* <SearchModal /> */}
+                        {/* <LanguagesModal /> */}
                         <div className="nxl-h-item d-none d-sm-flex" >
                             <div className="full-screen-switcher">
                                 <span className="nxl-head-link me-0">
@@ -202,7 +194,7 @@ const Header = () => {
                                 <FiSun size={20} />
                             </div>
                         </div>
-                        <TimesheetsModal />
+                        {/* <TimesheetsModal /> */}
                         <NotificationsModal />
                         <ProfileModal />
                     </div>

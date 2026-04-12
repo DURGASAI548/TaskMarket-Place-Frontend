@@ -19,9 +19,8 @@ const NavigationManu = () => {
             <div className="navbar-wrapper">
                 <div className="m-header">
                     <Link href="/" className="b-brand">
-                        {/* <!-- ========   change your logo hear   ============ --> */}
-                        <Image width={140} height={30} src="/images/logo-full.png" alt="logo" className="logo logo-lg" />
-                        <Image width={140} height={30} src="/images/logo-abbr.png" alt="logo" className="logo logo-sm" />
+                        {/* <Image width={140} height={30} src="/images/logo-full.png" alt="logo" className="logo logo-lg" />
+                        <Image width={140} height={30} src="/images/logo-abbr.png" alt="logo" className="logo logo-sm" /> */}
                     </Link>
                 </div>
 
@@ -33,7 +32,7 @@ const NavigationManu = () => {
                             </li>
                             <Menus />
                         </ul>
-                        <div className="card text-center">
+                        {/* <div className="card text-center">
                             <div className="card-body">
                                 <i className="fs-4 text-dark"><FiSunrise /></i>
                                 <h6 className="mt-4 text-dark fw-bolder">Downloading Center</h6>
@@ -41,7 +40,7 @@ const NavigationManu = () => {
                                 <Link href="#" className="btn btn-primary text-dark w-100">Download Now</Link>
                             </div>
                         </div>
-                        <div style={{ height: "18px" }}></div>
+                        <div style={{ height: "18px" }}></div> */}
                     </PerfectScrollbar>
                 </div>
             </div>
