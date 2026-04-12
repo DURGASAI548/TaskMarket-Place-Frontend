@@ -593,7 +593,7 @@ export const menuList = [
         ]
     },
     {
-        id: 10,
+        id: 213413,
         name: "Organization",
         path: "#",
         icon: 'feather-power',

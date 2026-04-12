@@ -2,7 +2,7 @@ import React from 'react'
 import dynamic from 'next/dynamic'
 import PageHeader from '@/components/shared/pageHeader/PageHeader'
 import ProposalEditHeader from '@/components/proposalEditCreate/ProposalEditHeader'
-import ViewBranch from '@/components/branch/ViewBranch'
+import ViewUsers from '@/components/user/ViewUsers'
 // const ProposalSent = dynamic(() => import('@/components/proposalEditCreate/ProposalSent'), { ssr: false })
 const page = () => {
     return (
@@ -12,7 +12,7 @@ const page = () => {
             </PageHeader> */}
             <div className='main-content'>
                 <div className='row'>
-                    <ViewBranch />
+                    <ViewUsers />
                 </div>
             </div>
             {/* <ProposalSent /> */}

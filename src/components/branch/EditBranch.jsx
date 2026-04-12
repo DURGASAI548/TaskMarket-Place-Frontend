@@ -23,11 +23,6 @@ const validateOrganization = (value) => {
   return ''
 }
 
-const validateAdmin = (value) => {
-  if (!value) return 'Please select a branch admin'
-  return ''
-}
-
 const validateDescription = (value) => {
   const trimmed = value.trim()
   if (!trimmed) return 'Branch description is required'
@@ -36,10 +31,10 @@ const validateDescription = (value) => {
   return ''
 }
 
+// branchAdmin removed — it's optional
 const validators = {
   branchName: validateBranchName,
   organization: validateOrganization,
-  branchAdmin: validateAdmin,
   description: validateDescription,
 }
 
@@ -60,14 +55,12 @@ const EditBranch = () => {
   const [errors, setErrors] = useState({
     branchName: '',
     organization: '',
-    branchAdmin: '',
     description: '',
   })
 
   const [touched, setTouched] = useState({
     branchName: false,
     organization: false,
-    branchAdmin: false,
     description: false,
   })
 
@@ -97,7 +90,7 @@ const EditBranch = () => {
 
         const [usersRes, orgsRes, branchRes] = await Promise.all([
           axios.get(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/get-normal-users`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/get-normal-users-for-branch/${id}`,
             { withCredentials: true }
           ),
           axios.get(
@@ -110,36 +103,30 @@ const EditBranch = () => {
           ),
         ])
 
-        // ── Build users dropdown ──────────────────────
         const usersData = usersRes.data.data.map((ele) => ({
           value: ele._id,
           label: ele.name,
           img: ele.profileURL,
         }))
 
-        // ── Build organizations dropdown ──────────────
         const orgsData = orgsRes.data.data.map((ele) => ({
           value: ele._id,
           label: ele.orgName,
           img: '',
         }))
 
-        // ── Extract branch data ───────────────────────
         const branch = branchRes.data.data
 
-        // Handle branchAdmin — could be plain ID or populated object
         const adminId =
           typeof branch.branchAdmin === 'object' && branch.branchAdmin !== null
             ? branch.branchAdmin._id
             : branch.branchAdmin || null
 
-        // Handle org — could be plain ID or populated object
         const orgId =
           typeof branch.org === 'object' && branch.org !== null
             ? branch.org._id
             : branch.org || null
 
-        // If previous admin isn't in users list, inject them
         if (adminId && !usersData.find((u) => u.value === adminId)) {
           const adminObj = branch.branchAdmin
           usersData.unshift({
@@ -153,7 +140,6 @@ const EditBranch = () => {
           })
         }
 
-        // If previous org isn't in orgs list, inject it
         if (orgId && !orgsData.find((o) => o.value === orgId)) {
           const orgObj = branch.org
           orgsData.unshift({
@@ -193,59 +179,69 @@ const EditBranch = () => {
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
 
-    if (touched[field]) {
+    // Only validate fields that have validators (branchAdmin doesn't)
+    if (touched[field] && validators[field]) {
       setErrors((prev) => ({ ...prev, [field]: validators[field](value) }))
     }
   }
 
   const handleBlur = (field) => {
-    setTouched((prev) => ({ ...prev, [field]: true }))
-    setErrors((prev) => ({ ...prev, [field]: validators[field](formData[field]) }))
+    if (validators[field]) {
+      setTouched((prev) => ({ ...prev, [field]: true }))
+      setErrors((prev) => ({ ...prev, [field]: validators[field](formData[field]) }))
+    }
   }
 
   const handleDropdownSelect = (field, option) => {
     const selectedValue = option?.value || null
     handleChange(field, selectedValue)
-    setTouched((prev) => ({ ...prev, [field]: true }))
-    setErrors((prev) => ({ ...prev, [field]: validators[field](selectedValue) }))
+
+    if (validators[field]) {
+      setTouched((prev) => ({ ...prev, [field]: true }))
+      setErrors((prev) => ({ ...prev, [field]: validators[field](selectedValue) }))
+    }
+  }
+
+  const handleAdminSelect = (option) => {
+    const selectedValue = option?.value || null
+    setFormData((prev) => ({ ...prev, branchAdmin: selectedValue }))
+  }
+
+  const handleClearAdmin = () => {
+    setFormData((prev) => ({ ...prev, branchAdmin: null }))
   }
 
   // ── Submit ────────────────────────────────────────────
   const handleSubmit = async () => {
-    // Mark all touched
     setTouched({
       branchName: true,
       organization: true,
-      branchAdmin: true,
       description: true,
     })
 
-    // Run all validations
     const newErrors = {
       branchName: validateBranchName(formData.branchName),
       organization: validateOrganization(formData.organization),
-      branchAdmin: validateAdmin(formData.branchAdmin),
       description: validateDescription(formData.description),
     }
     setErrors(newErrors)
 
-    // Focus first invalid field
+    // Only check required fields — branchAdmin is skipped
     if (newErrors.branchName) {
       branchNameRef.current?.focus()
       return
     }
     if (newErrors.organization) return
-    if (newErrors.branchAdmin) return
     if (newErrors.description) {
       descriptionRef.current?.focus()
       return
     }
 
-    // ── All valid — update branch ───────────────────────
+    // branchAdmin is optional — send _id if selected, null if not
     const payload = {
       branchName: formData.branchName.trim(),
-      orgId: formData.organization,
-      branchAdmin: formData.branchAdmin,
+      org: formData.organization,
+      branchAdminUser: formData.branchAdmin || null,
       branchDescription: formData.description.trim(),
     }
 
@@ -261,8 +257,8 @@ const EditBranch = () => {
       topTost?.('success', 'Branch updated successfully!')
 
       // Reset touched/errors but KEEP the updated data
-      setTouched({ branchName: false, organization: false, branchAdmin: false, description: false })
-      setErrors({ branchName: '', organization: '', branchAdmin: '', description: '' })
+      setTouched({ branchName: false, organization: false, description: false })
+      setErrors({ branchName: '', organization: '', description: '' })
     } catch (err) {
       console.error('Failed to update branch:', err)
       const message =
@@ -274,8 +270,11 @@ const EditBranch = () => {
     }
   }
 
-  // ── Character count ───────────────────────────────────
   const descCharCount = formData.description.trim().length
+
+  const selectedAdminOption = userOptions.find(
+    (opt) => opt.value === formData.branchAdmin
+  ) || null
 
   // ── Loading State ─────────────────────────────────────
   if (loadingBranchData) {
@@ -403,10 +402,11 @@ const EditBranch = () => {
               </div>
 
               <div className="row">
-                {/* ── Branch Admin ──────────────────────── */}
+                {/* ── Branch Admin (OPTIONAL) ──────────── */}
                 <div className="col-lg-6 mb-4">
                   <label className="form-label">
-                    Branch Admin <span className="text-danger">*</span>
+                    Branch Admin
+                    <span className="text-muted fs-11 ms-1">(optional)</span>
                   </label>
                   {loadingUsers ? (
                     <div className="d-flex justify-content-center align-items-center">
@@ -424,26 +424,28 @@ const EditBranch = () => {
                     </div>
                   ) : (
                     <>
-                      <SelectDropdown
-                        options={userOptions}
-                        selectedOption={
-                          userOptions.find(
-                            (opt) => opt.value === formData.branchAdmin
-                          ) || null
-                        }
-                        defaultSelect=""
-                        onSelectOption={(option) =>
-                          handleDropdownSelect('branchAdmin', option)
-                        }
-                      />
-                      {touched.branchAdmin && errors.branchAdmin && (
-                        <div
-                          className="text-danger mt-1"
-                          style={{ fontSize: '0.875em' }}
-                        >
-                          {errors.branchAdmin}
-                        </div>
-                      )}
+                      <div className="position-relative">
+                        <SelectDropdown
+                          options={userOptions}
+                          selectedOption={selectedAdminOption}
+                          defaultSelect=""
+                          onSelectOption={handleAdminSelect}
+                        />
+                        {selectedAdminOption && (
+                          <button
+                            type="button"
+                            className="btn btn-sm position-absolute border-0 p-0"
+                            style={{ right: 36, top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}
+                            onClick={handleClearAdmin}
+                            title="Clear selection"
+                          >
+                            <span className="text-muted fs-12">✕</span>
+                          </button>
+                        )}
+                      </div>
+                      <div className="fs-11 text-muted mt-1">
+                        You can change or remove the admin anytime
+                      </div>
                     </>
                   )}
                 </div>

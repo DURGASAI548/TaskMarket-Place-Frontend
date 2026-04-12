@@ -16,11 +16,6 @@ const validateOrgName = (value) => {
   return ''
 }
 
-const validateAdmin = (value) => {
-  if (!value) return 'Please select an organization admin'
-  return ''
-}
-
 const validateDescription = (value) => {
   const trimmed = value.trim()
   if (!trimmed) return 'Organization description is required'
@@ -37,12 +32,10 @@ const AddOrganization = () => {
   })
   const [errors, setErrors] = useState({
     orgName: '',
-    orgAdmin: '',
     description: '',
   })
   const [touched, setTouched] = useState({
     orgName: false,
-    orgAdmin: false,
     description: false,
   })
   const [currencyOptionsData_1, setCurrencyOptionsData_1] = useState([])
@@ -51,30 +44,30 @@ const AddOrganization = () => {
   const orgNameRef = useRef(null)
   const descriptionRef = useRef(null)
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoadingUsers(true)
-        const result = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/get-normal-users`,
-          { withCredentials: true }
-        )
-        const data = result.data.data.map((ele) => ({
-          value: ele._id,
-          label: ele.name,
-          img: ele.profileURL,
-        }))
+  // useEffect(() => {
+  //   const fetchUsers = async () => {
+  //     try {
+  //       setLoadingUsers(true)
+  //       const result = await axios.get(
+  //         `${process.env.NEXT_PUBLIC_API_URL}/api/get-normal-users`,
+  //         { withCredentials: true }
+  //       )
+  //       const data = result.data.data.map((ele) => ({
+  //         value: ele._id,
+  //         label: ele.name,
+  //         img: ele.profileURL,
+  //       }))
 
-        setCurrencyOptionsData_1(data)
-      } catch (err) {
-        console.log('Failed to fetch users:', err)
-        topTost?.('error','Failed to load users. Please refresh.')
-      } finally {
-        setLoadingUsers(false)
-      }
-    }
-    fetchUsers()
-  }, [])
+  //       setCurrencyOptionsData_1(data)
+  //     } catch (err) {
+  //       console.log('Failed to fetch users:', err)
+  //       topTost?.('error', 'Failed to load users. Please refresh.')
+  //     } finally {
+  //       setLoadingUsers(false)
+  //     }
+  //   }
+  //   fetchUsers()
+  // }, [])
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -82,7 +75,6 @@ const AddOrganization = () => {
     if (touched[field]) {
       let error = ''
       if (field === 'orgName') error = validateOrgName(value)
-      else if (field === 'orgAdmin') error = validateAdmin(value)
       else if (field === 'description') error = validateDescription(value)
       setErrors((prev) => ({ ...prev, [field]: error }))
     }
@@ -93,52 +85,48 @@ const AddOrganization = () => {
     let error = ''
     const value = formData[field]
     if (field === 'orgName') error = validateOrgName(value)
-    else if (field === 'orgAdmin') error = validateAdmin(value)
     else if (field === 'description') error = validateDescription(value)
     setErrors((prev) => ({ ...prev, [field]: error }))
   }
 
   const handleAdminSelect = (option) => {
     const selectedValue = option?.value || null
-    handleChange('orgAdmin', selectedValue)
-    setTouched((prev) => ({ ...prev, orgAdmin: true }))
-    setErrors((prev) => ({
-      ...prev,
-      orgAdmin: validateAdmin(selectedValue),
-    }))
+    setFormData((prev) => ({ ...prev, orgAdmin: selectedValue }))
+  }
+
+  const handleClearAdmin = () => {
+    setFormData((prev) => ({ ...prev, orgAdmin: null }))
   }
 
   const handleSubmit = async () => {
     setTouched({
       orgName: true,
-      orgAdmin: true,
       description: true,
     })
     const orgNameError = validateOrgName(formData.orgName)
-    const orgAdminError = validateAdmin(formData.orgAdmin)
     const descriptionError = validateDescription(formData.description)
     const newErrors = {
       orgName: orgNameError,
-      orgAdmin: orgAdminError,
       description: descriptionError,
     }
     setErrors(newErrors)
+
     if (orgNameError) {
       orgNameRef.current?.focus()
-      return
-    }
-    if (orgAdminError) {
       return
     }
     if (descriptionError) {
       descriptionRef.current?.focus()
       return
     }
+
+    // orgAdmin is optional — send _id if selected, null if not
     const payload = {
       orgName: formData.orgName.trim(),
-      orgAdminUser: formData.orgAdmin,
+      orgAdminUser: formData.orgAdmin || null,
       orgDescription: formData.description.trim(),
     }
+
     try {
       setSubmittingLoading(true)
       const result = await axios.post(
@@ -146,15 +134,15 @@ const AddOrganization = () => {
         payload,
         { withCredentials: true }
       )
-      topTost?.('Organization created successfully!', 'success')
+      topTost?.('success', 'Organization created successfully!')
       setFormData({ orgName: '', orgAdmin: null, description: '' })
-      setTouched({ orgName: false, orgAdmin: false, description: false })
-      setErrors({ orgName: '', orgAdmin: '', description: '' })
+      setTouched({ orgName: false, description: false })
+      setErrors({ orgName: '', description: '' })
     } catch (err) {
       console.log('Failed to create organization:', err)
       const message =
         err?.response?.data?.message || 'Failed to create organization. Please try again.'
-      topTost?.( 'error',message)
+      topTost?.('error', message)
     } finally {
       setSubmittingLoading(false)
     }
@@ -162,13 +150,16 @@ const AddOrganization = () => {
 
   const descCharCount = formData.description.trim().length
 
+  const selectedAdminOption = currencyOptionsData_1.find(
+    (opt) => opt.value === formData.orgAdmin
+  ) || null
+
   return (
     <>
       <div className="col-xl-8">
         <div className="card stretch stretch-full">
           <div className="card-body">
             <h5>Add Organization</h5>
-            {/* <h6></h6> */}
             <div>
               <div className="row">
                 <div className="col-lg-6 mb-4">
@@ -178,7 +169,13 @@ const AddOrganization = () => {
                   <input
                     ref={orgNameRef}
                     type="text"
-                    className={`form-control mb-0`}
+                    className={`form-control mb-0 ${
+                      touched.orgName
+                        ? errors.orgName
+                          ? 'is-invalid'
+                          : 'is-valid'
+                        : ''
+                    }`}
                     placeholder="Org Name"
                     value={formData.orgName}
                     onChange={(e) => handleChange('orgName', e.target.value)}
@@ -193,9 +190,10 @@ const AddOrganization = () => {
                   )}
                 </div>
 
-                <div className="col-lg-6 mb-4">
+                {/* <div className="col-lg-6 mb-4">
                   <label className="form-label">
-                    Organization Admin <span className="text-danger">*</span>
+                    Organization Admin
+                    <span className="text-muted fs-11 ms-1">(optional)</span>
                   </label>
                   {loadingusers ? (
                     <div className="d-flex justify-content-center align-items-center">
@@ -207,32 +205,37 @@ const AddOrganization = () => {
                         strokeWidth="5"
                         animationDuration="0.75"
                         ariaLabel="rotating-lines-loading"
-                      /> &nbsp;
+                      />
+                      &nbsp;
                       <span>Bringing all the users</span>
                     </div>
                   ) : (
                     <>
-                      <SelectDropdown
-                        options={currencyOptionsData_1}
-                        selectedOption={
-                          currencyOptionsData_1.find(
-                            (opt) => opt.value === formData.orgAdmin
-                          ) || null
-                        }
-                        defaultSelect=""
-                        onSelectOption={handleAdminSelect}
-                      />
-                      {touched.orgAdmin && errors.orgAdmin && (
-                        <div
-                          className="text-danger mt-1"
-                          style={{ fontSize: '0.875em' }}
-                        >
-                          {errors.orgAdmin}
-                        </div>
-                      )}
+                      <div className="position-relative">
+                        <SelectDropdown
+                          options={currencyOptionsData_1}
+                          selectedOption={selectedAdminOption}
+                          defaultSelect=""
+                          onSelectOption={handleAdminSelect}
+                        />
+                        {selectedAdminOption && (
+                          <button
+                            type="button"
+                            className="btn btn-sm position-absolute border-0 p-0"
+                            style={{ right: 36, top: '50%', transform: 'translateY(-50%)', zIndex: 2 }}
+                            onClick={handleClearAdmin}
+                            title="Clear selection"
+                          >
+                            <span className="text-muted fs-12">✕</span>
+                          </button>
+                        )}
+                      </div>
+                      <div className="fs-11 text-muted mt-1">
+                        You can assign an admin later if needed
+                      </div>
                     </>
                   )}
-                </div>
+                </div> */}
               </div>
             </div>
 
@@ -245,8 +248,13 @@ const AddOrganization = () => {
                   <textarea
                     ref={descriptionRef}
                     rows={5}
-                    className={`form-control 
-                    `}
+                    className={`form-control ${
+                      touched.description
+                        ? errors.description
+                          ? 'is-invalid'
+                          : 'is-valid'
+                        : ''
+                    }`}
                     placeholder="Enter organization description (min 10 characters)"
                     value={formData.description}
                     onChange={(e) =>
