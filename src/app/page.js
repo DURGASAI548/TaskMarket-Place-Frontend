@@ -1,4 +1,6 @@
-import React from 'react'
+'use client'
+import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import PageHeader from '@/components/shared/pageHeader/PageHeader'
 import PageHeaderDate from '@/components/shared/pageHeader/PageHeaderDate'
 import SiteOverviewStatistics from '@/components/widgetsStatistics/SiteOverviewStatistics'
@@ -12,13 +14,55 @@ import LatestLeads from '@/components/widgetsTables/LatestLeads'
 import TeamProgress from '@/components/widgetsList/Progress'
 import { projectsDataTwo } from '@/utils/fackData/projectsDataTwo'
 import DuplicateLayout from './duplicateLayout'
+import { useAuthStore } from '@/store/useAuthStore'
+import axios from 'axios'
 
 const Home = () => {
+  const router = useRouter()
+  const { isLogged, logout } = useAuthStore()
+  const [verifying, setVerifying] = useState(true)
+
+  useEffect(() => {
+    const verifyToken = async () => {
+      try {
+        const result = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/verify-token`,
+          { withCredentials: true }
+        )
+        if (result.status === 200 && result.data.message === 'Valid token') {
+          setVerifying(false)
+        } else {
+          logout()
+          router.push('/authentication/login/minimal')
+        }
+      } catch (err) {
+        console.error('Token verification failed:', err)
+        logout()
+        router.push('/authentication/login/minimal')
+      }
+    }
+
+    if (!isLogged) {
+      router.push('/authentication/login/minimal')
+    } else {
+      verifyToken()
+    }
+  }, [])
+
+  if (verifying) {
+    return (
+      <DuplicateLayout>
+        <div className="d-flex align-items-center justify-content-center" style={{ minHeight: '60vh' }}>
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </DuplicateLayout>
+    )
+  }
+
   return (
     <DuplicateLayout>
-      {/* <PageHeader >
-        <PageHeaderDate />
-      </PageHeader> */}
       <div className='main-content'>
         <div className='row'>
           {/* <SiteOverviewStatistics />

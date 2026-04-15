@@ -47,7 +47,6 @@ const ProfileModal = () => {
                 { withCredentials: true }
             );
             logout();
-            localStorage.removeItem('auth-storage');
             router.push('/authentication/login/minimal');
         } catch (err) {
             console.error('Logout failed:', err);
