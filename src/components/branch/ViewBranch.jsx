@@ -217,7 +217,7 @@ const ViewBranches = () => {
 
     return (
         <>
-            {/* <div className="col-12 d-flex flex-wrap justify-content-between align-items-center mb-3">
+            <div className="col-12 d-flex flex-wrap justify-content-between align-items-center mb-3">
                 <div>
                     <h5 className="fw-bold mb-0">Branches</h5>
                     <p className="text-muted fs-12 mb-0">
@@ -231,11 +231,11 @@ const ViewBranches = () => {
                     <FiPlus size={14} className="me-2" />
                     Add Branch
                 </Link>
-            </div> */}
+            </div>
 
-            {/* <div className="col-12 mb-4">
+            <div className="col-12 mb-0">
                 <div className="card border-0 shadow-sm">
-                    <div className="card-body py-3">
+                    <div className="card-body py-2">
                         <div className="row align-items-center g-2">
                             <div className="col-lg-6 col-md-7">
                                 <div className="position-relative">
@@ -310,7 +310,7 @@ const ViewBranches = () => {
                         )}
                     </div>
                 </div>
-            </div> */}
+            </div>
 
             {filteredData && filteredData.length === 0 && (
                 <div className="col-12">

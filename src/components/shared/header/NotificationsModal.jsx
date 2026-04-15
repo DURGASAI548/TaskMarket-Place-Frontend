@@ -3,27 +3,27 @@ import React from 'react'
 import { FiBell, FiCheck, FiX } from 'react-icons/fi'
 
 const notificationsList = [
-    {
-        id: 1,
-        src: "/images/avatar/2.png",
-        time: "2",
-        titleFirst: "Malanie Hanvey",
-        titleSecond: "We should talk about that at lunch!"
-    },
-    {
-        id: 3,
-        src: "/images/avatar/3.png",
-        time: "36",
-        titleFirst: "Valentine Maton",
-        titleSecond: "You can download the latest invoices now."
-    },
-    {
-        id: 4,
-        src: "/images/avatar/4.png",
-        time: "53",
-        titleFirst: "Archie Cantones",
-        titleSecond: "Don't forget to pickup Jeremy after school!"
-    },
+    // {
+    //     id: 1,
+    //     src: "/images/avatar/2.png",
+    //     time: "2",
+    //     titleFirst: "Malanie Hanvey",
+    //     titleSecond: "We should talk about that at lunch!"
+    // },
+    // {
+    //     id: 3,
+    //     src: "/images/avatar/3.png",
+    //     time: "36",
+    //     titleFirst: "Valentine Maton",
+    //     titleSecond: "You can download the latest invoices now."
+    // },
+    // {
+    //     id: 4,
+    //     src: "/images/avatar/4.png",
+    //     time: "53",
+    //     titleFirst: "Archie Cantones",
+    //     titleSecond: "Don't forget to pickup Jeremy after school!"
+    // },
 
 ]
 const NotificationsModal = () => {

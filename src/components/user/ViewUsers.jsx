@@ -361,7 +361,7 @@ const ViewUsers = ({ title = 'Users' }) => {
                             </div>
                             <h6 className="fw-bold mb-1 fs-13">No users yet</h6>
                             <p className="text-muted fs-12 mb-3">Get started by adding your first user.</p>
-                            <Link href="/add-user" className="btn btn-sm btn-primary d-flex align-items-center">
+                            <Link href="/add-users" className="btn btn-sm btn-primary d-flex align-items-center">
                                 <FiPlus size={13} className="me-1" /> Add User
                             </Link>
                         </div>

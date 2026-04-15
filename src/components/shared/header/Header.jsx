@@ -51,11 +51,11 @@ const Header = () => {
                 document.querySelector('.navigation-up-1600').style.display = 'none';
                 document.querySelector('.navigation-down-1600').style.display = 'block';
             }
-            // else {
-            //     document.documentElement.classList.remove('minimenu');
-            //     document.querySelector('.navigation-up-1600').style.display = 'block';
-            //     document.querySelector('.navigation-down-1600').style.display = 'none';
-            // }
+            else {
+                document.documentElement.classList.remove('minimenu');
+                document.querySelector('.navigation-up-1600').style.display = 'block';
+                document.querySelector('.navigation-down-1600').style.display = 'none';
+            }
         };
 
         window.addEventListener('resize', handleResize);
@@ -130,7 +130,7 @@ const Header = () => {
         <header className="nxl-header">
             <div className="header-wrapper">
                 {/* <!--! [Start] Header Left !--> */}
-                {/* <div className="header-left d-flex align-items-center gap-4">
+                <div className="header-left d-flex align-items-center gap-4">
                     <a href="#" className="nxl-head-mobile-toggler" onClick={(e) => {e.preventDefault(), setNavigationOpen(true)}} id="mobile-collapse">
                         <div className={`hamburger hamburger--arrowturn ${navigationOpen ? "is-active" : ""}`}>
                             <div className="hamburger-box">
@@ -140,26 +140,26 @@ const Header = () => {
                     </a>
                     <div className="nxl-navigation-toggle navigation-up-1600">
                         <a href="#" onClick={(e) => handleNavigationExpendUp(e, "show")} id="menu-mini-button" ref={miniButtonRef} style={{ display: navigationExpend ? "none" : "block" }}>
-                            <FiAlignLeft size={24} />
+                            {/* <FiAlignLeft size={24} /> */}
                         </a>
                         <a href="#" onClick={(e) => handleNavigationExpendUp(e, "hide")} id="menu-expend-button" ref={expendButtonRef} style={{ display: navigationExpend ? "block" : "none" }}>
-                            <FiArrowRight size={24} />
+                            {/* <FiArrowRight size={24} /> */}
                         </a>
                     </div>
                     <div className="nxl-navigation-toggle navigation-down-1600">
                         <a href="#" onClick={(e) => handleNavigationExpendDown(e, "hide")} id="menu-mini-button" ref={miniButtonRef} style={{ display: navigationExpend ? "block" : "none" }}>
-                            <FiAlignLeft size={24} />
+                            {/* <FiAlignLeft size={24} /> */}
                         </a>
                         <a href="#" onClick={(e) => handleNavigationExpendDown(e, "show")} id="menu-expend-button" ref={expendButtonRef} style={{ display: navigationExpend ? "none" : "block" }}>
-                            <FiArrowRight size={24} />
+                            {/* <FiArrowRight size={24} /> */}
                         </a>
                     </div>
-                    <div className="nxl-lavel-mega-menu-toggle d-flex d-lg-none">
+                    {/* <div className="nxl-lavel-mega-menu-toggle d-flex d-lg-none">
                         <a href="#" onClick={(e) => {e.preventDefault(), setOpenMegaMenu(true)}} id="nxl-lavel-mega-menu-open">
                             <FiAlignLeft size={24} />
                         </a>
-                    </div>
-                    <div className="nxl-drp-link nxl-lavel-mega-menu">
+                    </div> */}
+                    {/* <div className="nxl-drp-link nxl-lavel-mega-menu">
                         <div className="nxl-lavel-mega-menu-toggle d-flex d-lg-none">
                             <a href="#" onClick={(e) => {e.preventDefault(), setOpenMegaMenu(false)}} id="nxl-lavel-mega-menu-hide">
                                 <i className="me-2"><FiArrowLeft /></i>
@@ -170,8 +170,8 @@ const Header = () => {
                             <HeaderDropDownModal />
                             <MegaMenu />
                         </div>
-                    </div>
-                </div> */}
+                    </div> */}
+                </div>
                 {/* <!--! [End] Header Left !-->
                 <!--! [Start] Header Right !--> */}
                 <div className="header-right ms-auto">
