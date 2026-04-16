@@ -4,7 +4,7 @@ import topTost from '@/utils/topTost'
 import { RotatingLines } from 'react-loader-spinner'
 import axios from 'axios'
 import SelectDropdown from '@/components/shared/SelectDropdown'
-import { FiCamera, FiSave, FiUpload, FiX, FiUser, FiTag, FiMail, FiPhone, FiFile, FiUsers, FiInfo } from 'react-icons/fi'
+import { FiCamera, FiSave, FiUpload, FiX, FiUser, FiTag, FiMail, FiPhone, FiFile, FiUsers, FiInfo, FiDownload, FiAlertCircle } from 'react-icons/fi'
 
 // ── Validation Rules ──────────────────────────────────────
 
@@ -68,19 +68,70 @@ const validateAvatar = (file) => {
     return ''
 }
 
-const validateExcelFile = (file) => {
-    if (!file) return 'Please upload an Excel file'
-    const allowedTypes = [
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel',
-        'text/csv',
-    ]
-    const allowedExtensions = ['.xlsx', '.xls', '.csv']
+// ── CSV-only validation ───────────────────────────────────
+const validateCsvFile = (file) => {
+    if (!file) return 'Please upload a CSV file'
+
+    // Check extension (most reliable since MIME types vary across browsers/OS)
     const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
-    if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(ext))
-        return 'Only Excel files (.xlsx, .xls, .csv) are allowed'
+    if (ext !== '.csv') {
+        return 'Only CSV files are allowed (.csv)'
+    }
+
+    // Validate MIME type when available
+    const allowedMimeTypes = [
+        'text/csv',
+        'application/csv',
+        'application/vnd.ms-excel', // Excel sometimes reports CSV as this
+        'text/plain', // Some systems report CSV as plain text
+        '', // Some browsers don't set MIME for CSV
+    ]
+    if (file.type && !allowedMimeTypes.includes(file.type)) {
+        return 'Invalid file type. Please upload a .csv file'
+    }
+
     if (file.size > 10 * 1024 * 1024) return 'File size must be under 10MB'
+    if (file.size === 0) return 'File is empty'
     return ''
+}
+
+// ── CSV Template Data ─────────────────────────────────────
+const CSV_TEMPLATE_HEADERS = ['name', 'email', 'displayName', 'rollNo', 'phoneNo']
+const CSV_SAMPLE_ROWS = [
+    ['John Doe', 'john.doe@example.com', 'John', '21A91A0501', '9876543210'],
+    ['Jane Smith', 'jane.smith@example.com', 'Jane', '21A91A0502', '9876543211'],
+    ['Ravi Kumar', 'ravi.kumar@example.com', 'Ravi', '21A91A0503', '9876543212'],
+]
+
+// Escape CSV field if it contains commas, quotes, or newlines
+const escapeCsvField = (field) => {
+    const str = String(field)
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`
+    }
+    return str
+}
+
+const generateCsvTemplate = () => {
+    const headerRow = CSV_TEMPLATE_HEADERS.map(escapeCsvField).join(',')
+    const dataRows = CSV_SAMPLE_ROWS.map((row) =>
+        row.map(escapeCsvField).join(',')
+    )
+    return [headerRow, ...dataRows].join('\n')
+}
+
+const downloadCsvTemplate = () => {
+    const csvContent = generateCsvTemplate()
+    // Add BOM so Excel opens UTF-8 CSVs correctly
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'users-template.csv'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
 }
 
 const singleValidators = {
@@ -199,11 +250,9 @@ const SectionDivider = ({ icon: Icon, title, subtitle }) => (
     </div>
 )
 
-// ── Main Component ────────────────────────────────────────
 const AddUsers = () => {
     const [isBulkUpload, setIsBulkUpload] = useState(false)
 
-    // ── Single User State ─────────────────────────────────
     const [singleForm, setSingleForm] = useState({ ...initialSingleForm })
     const [singleErrors, setSingleErrors] = useState(createErrorState(singleKeys))
     const [singleTouched, setSingleTouched] = useState(createTouchedState(singleKeys))
@@ -212,33 +261,30 @@ const AddUsers = () => {
     const [avatarPreview, setAvatarPreview] = useState('/images/avatar/1.png')
     const [avatarError, setAvatarError] = useState('')
 
-    // ── Bulk Upload State ─────────────────────────────────
     const [bulkForm, setBulkForm] = useState({ ...initialBulkForm })
     const [bulkErrors, setBulkErrors] = useState(createErrorState(bulkKeys))
     const [bulkTouched, setBulkTouched] = useState(createTouchedState(bulkKeys))
 
-    const [excelFile, setExcelFile] = useState(null)
-    const [excelError, setExcelError] = useState('')
+    const [csvFile, setCsvFile] = useState(null)
+    const [csvError, setCsvError] = useState('')
 
-    // ── Dropdown Data ─────────────────────────────────────
-    const [orgWithBranches, setOrgWithBranches] = useState([]) // raw API response
+    const [bulkResult, setBulkResult] = useState(null)
+
+    const [orgWithBranches, setOrgWithBranches] = useState([])
     const [organizationOptions, setOrganizationOptions] = useState([])
     const [branchOptions, setBranchOptions] = useState([])
     const [loadingDropdowns, setLoadingDropdowns] = useState(true)
 
-    // ── UI State ──────────────────────────────────────────
     const [submitting, setSubmitting] = useState(false)
 
-    // ── Refs ──────────────────────────────────────────────
     const nameRef = useRef(null)
     const rollRef = useRef(null)
     const emailRef = useRef(null)
     const usernameRef = useRef(null)
     const phoneRef = useRef(null)
     const avatarInputRef = useRef(null)
-    const excelInputRef = useRef(null)
+    const csvInputRef = useRef(null)
 
-    // ── Fetch Orgs + Branches (single API call) ───────────
     useEffect(() => {
         const fetchOrgWithBranches = async () => {
             try {
@@ -247,11 +293,8 @@ const AddUsers = () => {
                     `${process.env.NEXT_PUBLIC_API_URL}/api/get-org-with-branches`,
                     { withCredentials: true }
                 )
-
                 const data = result.data.data
                 setOrgWithBranches(data)
-
-                // Build organization dropdown options
                 const orgOpts = data.map((org) => ({
                     value: org.organizationId,
                     label: org.organizationName,
@@ -268,12 +311,10 @@ const AddUsers = () => {
         fetchOrgWithBranches()
     }, [])
 
-    // ── Filter branches when organization changes ─────────
     const currentOrgId = isBulkUpload ? bulkForm.organization : singleForm.organization
 
     useEffect(() => {
         if (currentOrgId) {
-            // Find the selected org and use its branchesEligible
             const selectedOrg = orgWithBranches.find((org) => org.organizationId === currentOrgId)
             const branches = (selectedOrg?.branchesEligible || []).map((b) => ({
                 value: b.branchId,
@@ -285,7 +326,6 @@ const AddUsers = () => {
             setBranchOptions([])
         }
 
-        // Reset branch selection when org changes
         if (isBulkUpload) {
             setBulkForm((prev) => ({ ...prev, branch: null }))
         } else {
@@ -342,23 +382,23 @@ const AddUsers = () => {
         if (avatarInputRef.current) avatarInputRef.current.value = ''
     }
 
-    // ── Excel File Handler ────────────────────────────────
-    const handleExcelChange = (e) => {
+    // ── CSV File Handler ──────────────────────────────────
+    const handleCsvChange = (e) => {
         const file = e.target.files?.[0]
         if (!file) return
-        const error = validateExcelFile(file)
-        setExcelError(error)
+        const error = validateCsvFile(file)
+        setCsvError(error)
         if (!error) {
-            setExcelFile(file)
+            setCsvFile(file)
         } else {
             e.target.value = ''
         }
     }
 
-    const removeExcelFile = () => {
-        setExcelFile(null)
-        setExcelError('')
-        if (excelInputRef.current) excelInputRef.current.value = ''
+    const removeCsvFile = () => {
+        setCsvFile(null)
+        setCsvError('')
+        if (csvInputRef.current) csvInputRef.current.value = ''
     }
 
     // ── Submit: Single User ───────────────────────────────
@@ -432,35 +472,62 @@ const AddUsers = () => {
         })
         setBulkErrors(newErrors)
 
-        const fileErr = validateExcelFile(excelFile)
-        setExcelError(fileErr)
+        const fileErr = validateCsvFile(csvFile)
+        setCsvError(fileErr)
 
         if (Object.values(newErrors).some((e) => e) || fileErr) return
+
+        // Clear any previous result before new submission
+        setBulkResult(null)
 
         const formData = new FormData()
         formData.append('orgId', bulkForm.organization)
         formData.append('branchId', bulkForm.branch)
-        formData.append('file', excelFile)
+        formData.append('file', csvFile)
 
         try {
             setSubmitting(true)
-            await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/bulk-upload-users`,
+            const response = await axios.post(
+                `${process.env.NEXT_PUBLIC_API_URL}/add-users-bulk-upload`,
                 formData,
                 { withCredentials: true, headers: { 'Content-Type': 'multipart/form-data' } }
             )
-            topTost?.('success', 'Users uploaded successfully!')
-            setBulkForm({ ...initialBulkForm })
-            setBulkTouched(createTouchedState(bulkKeys))
-            setBulkErrors(createErrorState(bulkKeys))
-            removeExcelFile()
+
+            const { stats, failedData } = response.data || {}
+
+            setBulkResult({
+                stats: stats || { total: 0, uploaded: 0, failed: 0 },
+                failedData: failedData || [],
+            })
+
+            if (stats?.failed > 0 && stats?.uploaded > 0) {
+                topTost?.('warning', `Partial success: ${stats.uploaded} uploaded, ${stats.failed} failed`)
+            } else if (stats?.failed > 0 && stats?.uploaded === 0) {
+                topTost?.('error', `All ${stats.failed} rows failed to upload`)
+            } else {
+                topTost?.('success', `Successfully uploaded ${stats?.uploaded || 0} users!`)
+            }
+
+            // Reset form fields only if fully successful
+            if (stats?.failed === 0) {
+                setBulkForm({ ...initialBulkForm })
+                setBulkTouched(createTouchedState(bulkKeys))
+                setBulkErrors(createErrorState(bulkKeys))
+                removeCsvFile()
+            }
         } catch (err) {
             console.error('Failed to upload users:', err)
             const message = err?.response?.data?.message || 'Failed to upload users. Please try again.'
             topTost?.('error', message)
+            setBulkResult(null)
         } finally {
             setSubmitting(false)
         }
+    }
+
+    // ── Clear result banner ────────────────────────────────
+    const dismissBulkResult = () => {
+        setBulkResult(null)
     }
 
     return (
@@ -475,7 +542,7 @@ const AddUsers = () => {
                         </h5>
                         <p className="text-muted fs-12 mb-0 mt-1">
                             {isBulkUpload
-                                ? 'Upload multiple users at once using an Excel file'
+                                ? 'Upload multiple users at once using a CSV file'
                                 : 'Fill in the details below to create a new user account'}
                         </p>
                     </div>
@@ -485,7 +552,10 @@ const AddUsers = () => {
                             type="checkbox"
                             id="bulkToggle"
                             checked={isBulkUpload}
-                            onChange={() => setIsBulkUpload(!isBulkUpload)}
+                            onChange={() => {
+                                setIsBulkUpload(!isBulkUpload)
+                                setBulkResult(null) // clear previous results on mode switch
+                            }}
                             disabled={submitting}
                         />
                         <label className="form-check-label fw-500 text-dark c-pointer fs-12" htmlFor="bulkToggle">
@@ -502,6 +572,121 @@ const AddUsers = () => {
                            BULK UPLOAD MODE
                            ══════════════════════════════════════════ */
                         <>
+                            {/* ─── Bulk Upload Result (Stats) ────── */}
+                            {bulkResult && (
+                                <div className="mb-4">
+                                    {/* Stats summary card */}
+                                    <div
+                                        className="d-flex align-items-center gap-3 p-3 rounded-3 mb-3"
+                                        style={{
+                                            background: bulkResult.stats.failed > 0 && bulkResult.stats.uploaded === 0 ? '#fee2e2'
+                                                : bulkResult.stats.failed > 0 ? '#fef3c7'
+                                                    : '#dcfce7',
+                                            border: `1px solid ${
+                                                bulkResult.stats.failed > 0 && bulkResult.stats.uploaded === 0 ? '#fecaca'
+                                                : bulkResult.stats.failed > 0 ? '#fde68a'
+                                                    : '#bbf7d0'
+                                            }`,
+                                        }}
+                                    >
+                                        <div className="flex-grow-1">
+                                            <div className="fs-13 fw-bold mb-2">
+                                                {bulkResult.stats.failed === 0 ? '✓ Upload Complete'
+                                                    : bulkResult.stats.uploaded === 0 ? '✕ Upload Failed'
+                                                        : '⚠ Partial Upload'}
+                                            </div>
+                                            <div className="d-flex gap-4 flex-wrap">
+                                                <div>
+                                                    <span className="fs-11 text-muted d-block">Total Rows</span>
+                                                    <span className="fs-15 fw-bold">{bulkResult.stats.total}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="fs-11 text-muted d-block">Uploaded</span>
+                                                    <span className="fs-15 fw-bold text-success">{bulkResult.stats.uploaded}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="fs-11 text-muted d-block">Failed</span>
+                                                    <span className="fs-15 fw-bold text-danger">{bulkResult.stats.failed}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="btn btn-sm btn-icon border-0 p-1 flex-shrink-0"
+                                            onClick={dismissBulkResult}
+                                            title="Dismiss"
+                                        >
+                                            <FiX size={16} className="text-muted" />
+                                        </button>
+                                    </div>
+
+                                    {/* Failed rows details */}
+                                    {bulkResult.failedData && bulkResult.failedData.length > 0 && (
+                                        <div className="border rounded-3 overflow-hidden">
+                                            <div className="d-flex align-items-center gap-2 px-3 py-2" style={{ background: '#fef2f2' }}>
+                                                <FiAlertCircle size={14} className="text-danger" />
+                                                <span className="fs-12 fw-semibold text-danger">
+                                                    Failed Rows ({bulkResult.failedData.length})
+                                                </span>
+                                            </div>
+                                            <div className="table-responsive" style={{ maxHeight: 240 }}>
+                                                <table className="table table-sm mb-0" style={{ fontSize: '0.8rem' }}>
+                                                    <thead style={{ background: '#f9fafb', position: 'sticky', top: 0 }}>
+                                                        <tr>
+                                                            <th style={{ width: 40 }}>#</th>
+                                                            <th>Name</th>
+                                                            <th>Email</th>
+                                                            <th>Reason</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {bulkResult.failedData.map((item, i) => (
+                                                            <tr key={i}>
+                                                                <td className="text-muted">{i + 1}</td>
+                                                                <td>{item.row?.name || '—'}</td>
+                                                                <td className="text-muted">{item.row?.email || '—'}</td>
+                                                                <td>
+                                                                    <span className="badge bg-soft-danger text-danger">
+                                                                        {item.reason || 'Unknown error'}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ─── Download Template Banner ─────── */}
+                            <div
+                                className="d-flex align-items-center gap-3 p-3 rounded-3 mb-4"
+                                style={{ background: '#fef3c7', border: '1px solid #fde68a' }}
+                            >
+                                <div
+                                    className="d-flex align-items-center justify-content-center rounded-2 flex-shrink-0"
+                                    style={{ width: 40, height: 40, background: '#fbbf24' }}
+                                >
+                                    <FiDownload size={18} className="text-white" />
+                                </div>
+                                <div className="flex-grow-1">
+                                    <div className="fs-13 fw-bold mb-1">New to bulk upload?</div>
+                                    <div className="fs-12 text-muted">
+                                        Download our sample CSV template to see the exact format required.
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-warning d-flex align-items-center flex-shrink-0"
+                                    onClick={downloadCsvTemplate}
+                                >
+                                    <FiDownload size={14} className="me-2" />
+                                    <span>Download Template</span>
+                                </button>
+                            </div>
+
                             {/* Section: Assignment */}
                             <SectionDivider
                                 icon={FiUsers}
@@ -544,15 +729,25 @@ const AddUsers = () => {
                             {/* Section: File Upload */}
                             <SectionDivider
                                 icon={FiUpload}
-                                title="Upload File"
-                                subtitle="Upload an Excel file with user data"
+                                title="Upload CSV File"
+                                subtitle="Upload a CSV file with user data (follows the template format)"
                             />
 
                             <div className="mb-4">
-                                <label className="form-label fw-semibold">
-                                    Users Excel File <span className="text-danger">*</span>
-                                </label>
-                                {excelFile ? (
+                                <div className="d-flex align-items-center justify-content-between mb-2">
+                                    <label className="form-label fw-semibold mb-0">
+                                        Users CSV File <span className="text-danger">*</span>
+                                    </label>
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-link text-decoration-none p-0 d-flex align-items-center"
+                                        onClick={downloadCsvTemplate}
+                                    >
+                                        <FiDownload size={12} className="me-1" />
+                                        <span className="fs-12">Download sample</span>
+                                    </button>
+                                </div>
+                                {csvFile ? (
                                     <div className="d-flex align-items-center gap-3 p-3 border rounded-3" style={{ background: '#f8faf8' }}>
                                         <div
                                             className="d-flex align-items-center justify-content-center rounded-2 flex-shrink-0"
@@ -561,12 +756,12 @@ const AddUsers = () => {
                                             <FiFile size={18} className="text-success" />
                                         </div>
                                         <div className="flex-grow-1 min-width-0">
-                                            <div className="fs-13 fw-medium text-truncate">{excelFile.name}</div>
-                                            <div className="fs-11 text-muted">{(excelFile.size / 1024).toFixed(1)} KB</div>
+                                            <div className="fs-13 fw-medium text-truncate">{csvFile.name}</div>
+                                            <div className="fs-11 text-muted">{(csvFile.size / 1024).toFixed(1)} KB</div>
                                         </div>
                                         <button
                                             className="btn btn-sm btn-outline-danger border-0 p-1"
-                                            onClick={removeExcelFile}
+                                            onClick={removeCsvFile}
                                             disabled={submitting}
                                             title="Remove file"
                                         >
@@ -575,7 +770,7 @@ const AddUsers = () => {
                                     </div>
                                 ) : (
                                     <label
-                                        htmlFor="excel-file"
+                                        htmlFor="csv-file"
                                         className="d-flex flex-column align-items-center justify-content-center gap-2 p-4 border border-dashed rounded-3 c-pointer"
                                         style={{ background: '#fafafa', cursor: 'pointer', minHeight: 120 }}
                                     >
@@ -586,22 +781,22 @@ const AddUsers = () => {
                                             <FiUpload size={20} className="text-primary" />
                                         </div>
                                         <div className="text-center">
-                                            <span className="fs-13 fw-medium text-dark d-block">Click to upload</span>
-                                            <span className="fs-11 text-muted">.xlsx, .xls, or .csv — Max 10MB</span>
+                                            <span className="fs-13 fw-medium text-dark d-block">Click to upload CSV</span>
+                                            <span className="fs-11 text-muted">Only .csv files — Max 10MB</span>
                                         </div>
                                         <input
-                                            ref={excelInputRef}
+                                            ref={csvInputRef}
                                             type="file"
-                                            id="excel-file"
-                                            accept=".xlsx,.xls,.csv"
-                                            onChange={handleExcelChange}
+                                            id="csv-file"
+                                            accept=".csv,text/csv"
+                                            onChange={handleCsvChange}
                                             disabled={submitting}
                                             hidden
                                         />
                                     </label>
                                 )}
-                                {excelError && (
-                                    <div className="invalid-feedback d-block">{excelError}</div>
+                                {csvError && (
+                                    <div className="invalid-feedback d-block">{csvError}</div>
                                 )}
                             </div>
 
@@ -609,7 +804,7 @@ const AddUsers = () => {
                             <div className="d-flex align-items-start gap-2 p-3 rounded-3 mb-4" style={{ background: '#eff6ff' }}>
                                 <FiInfo size={16} className="text-primary flex-shrink-0 mt-1" />
                                 <div className="fs-12 text-muted">
-                                    Your Excel file should contain columns for <strong>Name</strong>, <strong>Roll Number</strong>, <strong>Email</strong>, <strong>Username</strong>, and <strong>Phone</strong>. Each row will be created as a new user in the selected organization and branch.
+                                    Your CSV file must contain these columns in order: <strong>name</strong>, <strong>email</strong>, <strong>displayName</strong>, <strong>rollNo</strong>, <strong>phoneNo</strong>. Each row will be created as a new user in the selected organization and branch. <button type="button" className="btn btn-link btn-sm p-0 text-decoration-none fs-12" onClick={downloadCsvTemplate}>Download the template</button> to make sure your file matches exactly.
                                 </div>
                             </div>
                         </>
