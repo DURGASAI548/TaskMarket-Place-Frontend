@@ -6,7 +6,6 @@ import axios from 'axios'
 import SelectDropdown from '@/components/shared/SelectDropdown'
 import { FiCamera, FiSave, FiUpload, FiX, FiUser, FiTag, FiMail, FiPhone, FiFile, FiUsers, FiInfo, FiDownload, FiAlertCircle } from 'react-icons/fi'
 
-// ── Validation Rules ──────────────────────────────────────
 
 const validateName = (value) => {
     const trimmed = value.trim()
@@ -68,23 +67,20 @@ const validateAvatar = (file) => {
     return ''
 }
 
-// ── CSV-only validation ───────────────────────────────────
 const validateCsvFile = (file) => {
     if (!file) return 'Please upload a CSV file'
 
-    // Check extension (most reliable since MIME types vary across browsers/OS)
     const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase()
     if (ext !== '.csv') {
         return 'Only CSV files are allowed (.csv)'
     }
 
-    // Validate MIME type when available
     const allowedMimeTypes = [
         'text/csv',
         'application/csv',
-        'application/vnd.ms-excel', // Excel sometimes reports CSV as this
-        'text/plain', // Some systems report CSV as plain text
-        '', // Some browsers don't set MIME for CSV
+        'application/vnd.ms-excel', 
+        'text/plain', 
+        '', 
     ]
     if (file.type && !allowedMimeTypes.includes(file.type)) {
         return 'Invalid file type. Please upload a .csv file'
@@ -95,7 +91,6 @@ const validateCsvFile = (file) => {
     return ''
 }
 
-// ── CSV Template Data ─────────────────────────────────────
 const CSV_TEMPLATE_HEADERS = ['name', 'email', 'displayName', 'rollNo', 'phoneNo']
 const CSV_SAMPLE_ROWS = [
     ['John Doe', 'john.doe@example.com', 'John', '21A91A0501', '9876543210'],
@@ -103,7 +98,6 @@ const CSV_SAMPLE_ROWS = [
     ['Ravi Kumar', 'ravi.kumar@example.com', 'Ravi', '21A91A0503', '9876543212'],
 ]
 
-// Escape CSV field if it contains commas, quotes, or newlines
 const escapeCsvField = (field) => {
     const str = String(field)
     if (str.includes(',') || str.includes('"') || str.includes('\n')) {
@@ -122,7 +116,6 @@ const generateCsvTemplate = () => {
 
 const downloadCsvTemplate = () => {
     const csvContent = generateCsvTemplate()
-    // Add BOM so Excel opens UTF-8 CSVs correctly
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -173,7 +166,6 @@ const createErrorState = (keys) =>
 const singleKeys = Object.keys(initialSingleForm)
 const bulkKeys = Object.keys(initialBulkForm)
 
-// ── Reusable Components (outside to prevent remounting) ───
 
 const InputRow = ({ label, icon: Icon, fieldKey, type = 'text', inputRef, placeholder, maxLength, value, touched, error, onChange, onBlur, disabled }) => (
     <div className="mb-4">
@@ -333,7 +325,6 @@ const AddUsers = () => {
         }
     }, [currentOrgId, orgWithBranches])
 
-    // ── Single Form Handlers ──────────────────────────────
     const handleSingleChange = (field, value) => {
         setSingleForm((prev) => ({ ...prev, [field]: value }))
         if (singleTouched[field]) {
@@ -353,7 +344,6 @@ const AddUsers = () => {
         setSingleErrors((prev) => ({ ...prev, [field]: singleValidators[field](val) }))
     }
 
-    // ── Bulk Form Handlers ────────────────────────────────
     const handleBulkDropdown = (field, option) => {
         const val = option?.value || null
         setBulkForm((prev) => ({ ...prev, [field]: val }))
@@ -361,7 +351,6 @@ const AddUsers = () => {
         setBulkErrors((prev) => ({ ...prev, [field]: bulkValidators[field](val) }))
     }
 
-    // ── Avatar Handler ────────────────────────────────────
     const handleAvatarChange = (e) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -382,7 +371,6 @@ const AddUsers = () => {
         if (avatarInputRef.current) avatarInputRef.current.value = ''
     }
 
-    // ── CSV File Handler ──────────────────────────────────
     const handleCsvChange = (e) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -401,7 +389,6 @@ const AddUsers = () => {
         if (csvInputRef.current) csvInputRef.current.value = ''
     }
 
-    // ── Submit: Single User ───────────────────────────────
     const handleSingleSubmit = async () => {
         const allTouched = singleKeys.reduce((acc, key) => ({ ...acc, [key]: true }), {})
         setSingleTouched(allTouched)
@@ -461,7 +448,6 @@ const AddUsers = () => {
         }
     }
 
-    // ── Submit: Bulk Upload ───────────────────────────────
     const handleBulkSubmit = async () => {
         const allTouched = bulkKeys.reduce((acc, key) => ({ ...acc, [key]: true }), {})
         setBulkTouched(allTouched)
@@ -477,7 +463,6 @@ const AddUsers = () => {
 
         if (Object.values(newErrors).some((e) => e) || fileErr) return
 
-        // Clear any previous result before new submission
         setBulkResult(null)
 
         const formData = new FormData()
@@ -508,7 +493,6 @@ const AddUsers = () => {
                 topTost?.('success', `Successfully uploaded ${stats?.uploaded || 0} users!`)
             }
 
-            // Reset form fields only if fully successful
             if (stats?.failed === 0) {
                 setBulkForm({ ...initialBulkForm })
                 setBulkTouched(createTouchedState(bulkKeys))
@@ -525,7 +509,6 @@ const AddUsers = () => {
         }
     }
 
-    // ── Clear result banner ────────────────────────────────
     const dismissBulkResult = () => {
         setBulkResult(null)
     }
@@ -534,7 +517,6 @@ const AddUsers = () => {
         <div className="col-xxl-8 col-xl-9 col-lg-10 col-12">
             <div className="card stretch stretch-full">
 
-                {/* ── Card Header ────────────────────────────── */}
                 <div className="card-header d-flex align-items-center justify-content-between">
                     <div>
                         <h5 className="card-title mb-0">
@@ -554,7 +536,7 @@ const AddUsers = () => {
                             checked={isBulkUpload}
                             onChange={() => {
                                 setIsBulkUpload(!isBulkUpload)
-                                setBulkResult(null) // clear previous results on mode switch
+                                setBulkResult(null)
                             }}
                             disabled={submitting}
                         />
@@ -564,18 +546,12 @@ const AddUsers = () => {
                     </div>
                 </div>
 
-                {/* ── Card Body ───────────────────────────────── */}
                 <div className="card-body">
 
                     {isBulkUpload ? (
-                        /* ══════════════════════════════════════════
-                           BULK UPLOAD MODE
-                           ══════════════════════════════════════════ */
                         <>
-                            {/* ─── Bulk Upload Result (Stats) ────── */}
                             {bulkResult && (
                                 <div className="mb-4">
-                                    {/* Stats summary card */}
                                     <div
                                         className="d-flex align-items-center gap-3 p-3 rounded-3 mb-3"
                                         style={{
@@ -620,7 +596,6 @@ const AddUsers = () => {
                                         </button>
                                     </div>
 
-                                    {/* Failed rows details */}
                                     {bulkResult.failedData && bulkResult.failedData.length > 0 && (
                                         <div className="border rounded-3 overflow-hidden">
                                             <div className="d-flex align-items-center gap-2 px-3 py-2" style={{ background: '#fef2f2' }}>
@@ -660,7 +635,6 @@ const AddUsers = () => {
                                 </div>
                             )}
 
-                            {/* ─── Download Template Banner ─────── */}
                             <div
                                 className="d-flex align-items-center gap-3 p-3 rounded-3 mb-4"
                                 style={{ background: '#fef3c7', border: '1px solid #fde68a' }}
@@ -687,7 +661,6 @@ const AddUsers = () => {
                                 </button>
                             </div>
 
-                            {/* Section: Assignment */}
                             <SectionDivider
                                 icon={FiUsers}
                                 title="Assignment"
@@ -726,7 +699,6 @@ const AddUsers = () => {
 
                             <hr className="my-4" />
 
-                            {/* Section: File Upload */}
                             <SectionDivider
                                 icon={FiUpload}
                                 title="Upload CSV File"
@@ -800,7 +772,6 @@ const AddUsers = () => {
                                 )}
                             </div>
 
-                            {/* Info box */}
                             <div className="d-flex align-items-start gap-2 p-3 rounded-3 mb-4" style={{ background: '#eff6ff' }}>
                                 <FiInfo size={16} className="text-primary flex-shrink-0 mt-1" />
                                 <div className="fs-12 text-muted">
@@ -809,11 +780,7 @@ const AddUsers = () => {
                             </div>
                         </>
                     ) : (
-                        /* ══════════════════════════════════════════
-                           SINGLE USER MODE
-                           ══════════════════════════════════════════ */
                         <>
-                            {/* Section: Profile Photo */}
                             <SectionDivider
                                 icon={FiCamera}
                                 title="Profile Photo"
@@ -872,7 +839,6 @@ const AddUsers = () => {
 
                             <hr className="my-4" />
 
-                            {/* Section: Personal Information */}
                             <SectionDivider
                                 icon={FiUser}
                                 title="Personal Information"
@@ -919,7 +885,6 @@ const AddUsers = () => {
 
                             <hr className="my-4" />
 
-                            {/* Section: Organization & Branch */}
                             <SectionDivider
                                 icon={FiUsers}
                                 title="Organization & Branch"
@@ -958,7 +923,6 @@ const AddUsers = () => {
 
                             <hr className="my-4" />
 
-                            {/* Section: Account Details */}
                             <SectionDivider
                                 icon={FiTag}
                                 title="Account Details"
@@ -979,7 +943,6 @@ const AddUsers = () => {
                     )}
                 </div>
 
-                {/* ── Card Footer ────────────────────────────── */}
                 <div className="card-footer d-flex align-items-center justify-content-between bg-transparent">
                     <span className="fs-11 text-muted">
                         <span className="text-danger">*</span> indicates required fields

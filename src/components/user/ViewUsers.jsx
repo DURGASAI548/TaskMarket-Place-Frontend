@@ -11,10 +11,8 @@ import topTost from '@/utils/topTost'
 import { RotatingLines } from 'react-loader-spinner'
 import axios from 'axios'
 
-// ── Skeleton Row ──────────────────────────────────────────
 const SkeletonRow = () => (
     <tr>
-        {/* User avatar + text */}
         <td>
             <div className="d-flex align-items-center gap-3">
                 <div className="placeholder-glow">
@@ -33,43 +31,36 @@ const SkeletonRow = () => (
                 </div>
             </div>
         </td>
-        {/* Roll No */}
         <td>
             <div className="placeholder-glow">
                 <span className="placeholder bg-secondary rounded" style={{ width: 70, height: 20, display: 'block', borderRadius: 10 }}></span>
             </div>
         </td>
-        {/* Organization */}
         <td>
             <div className="placeholder-glow">
                 <span className="placeholder bg-secondary rounded" style={{ width: 100, height: 13, display: 'block' }}></span>
             </div>
         </td>
-        {/* Branch */}
         <td>
             <div className="placeholder-glow">
                 <span className="placeholder bg-secondary rounded" style={{ width: 110, height: 13, display: 'block' }}></span>
             </div>
         </td>
-        {/* Phone */}
         <td>
             <div className="placeholder-glow">
                 <span className="placeholder bg-secondary rounded" style={{ width: 90, height: 13, display: 'block' }}></span>
             </div>
         </td>
-        {/* User Type */}
         <td>
             <div className="placeholder-glow">
                 <span className="placeholder bg-secondary rounded" style={{ width: 50, height: 20, display: 'block', borderRadius: 10 }}></span>
             </div>
         </td>
-        {/* Joined */}
         <td>
             <div className="placeholder-glow">
                 <span className="placeholder bg-secondary rounded" style={{ width: 80, height: 13, display: 'block' }}></span>
             </div>
         </td>
-        {/* Actions */}
         <td className="text-end">
             <div className="placeholder-glow">
                 <span className="placeholder bg-secondary rounded" style={{ width: 20, height: 20, display: 'inline-block' }}></span>
@@ -78,26 +69,20 @@ const SkeletonRow = () => (
     </tr>
 )
 
-// ── Main Component ────────────────────────────────────────
 const ViewUsers = ({ title = 'Users' }) => {
     const { refreshKey, isRemoved, isExpanded, handleRefresh, handleExpand, handleDelete: handleCardDelete } = useCardTitleActions()
 
-    // ── Data State ──────────────────────────────────────
     const [users, setUsers] = useState(null)
     const [loading, setLoading] = useState(true)
     const [fetchError, setFetchError] = useState('')
 
-    // ── Delete State ────────────────────────────────────
     const [deletingId, setDeletingId] = useState(null)
 
-    // ── Search & Filter ─────────────────────────────────
     const [searchQuery, setSearchQuery] = useState('')
     const [filterType, setFilterType] = useState('all')
 
-    // ── Dropdown State ──────────────────────────────────
     const [activeDropdown, setActiveDropdown] = useState(null)
 
-    // ── Fetch Users ─────────────────────────────────────
     const fetchUsers = async () => {
         try {
             setLoading(true)
@@ -120,20 +105,16 @@ const ViewUsers = ({ title = 'Users' }) => {
         fetchUsers()
     }, [])
 
-    // Re-fetch on card refresh
     useEffect(() => {
         if (refreshKey) fetchUsers()
     }, [refreshKey])
 
-    // Close dropdown on outside click
     useEffect(() => {
         const handleClickOutside = () => setActiveDropdown(null)
         document.addEventListener('click', handleClickOutside)
         return () => document.removeEventListener('click', handleClickOutside)
     }, [])
 
-    // ── Filtered Data ───────────────────────────────────
-    // API fields: name, email, displayName, rollNo, organizationName, branchName, phoneNo, userType
     const filteredUsers = useMemo(() => {
         if (!users) return null
         if (!searchQuery.trim()) return users
@@ -165,7 +146,6 @@ const ViewUsers = ({ title = 'Users' }) => {
         })
     }, [users, searchQuery, filterType])
 
-    // ── Delete Handler ──────────────────────────────────
     const handleDeleteUser = async (id) => {
         if (deletingId) return
         try {
@@ -187,7 +167,6 @@ const ViewUsers = ({ title = 'Users' }) => {
 
     const isAnyDeleting = deletingId !== null
 
-    // ── Helpers ─────────────────────────────────────────
     const hasValidImage = (url) =>
         url && url !== 'null' && url !== 'undefined' && url.trim() !== ''
 
@@ -211,7 +190,6 @@ const ViewUsers = ({ title = 'Users' }) => {
 
     if (isRemoved) return null
 
-    // ── Table Head (reused in loading + data states) ────
     const tableHead = (
         <thead>
             <tr className="border-b">
@@ -230,13 +208,10 @@ const ViewUsers = ({ title = 'Users' }) => {
     return (
         <div className="col-xxl-12">
             <div className={`card stretch stretch-full ${isExpanded ? 'card-expand' : ''} ${refreshKey ? 'card-loading' : ''}`}>
-                {/* <CardHeader title={title} refresh={handleRefresh} remove={handleCardDelete} expanded={handleExpand} /> */}
 
-                {/* ── Search & Filter Bar ─────────────────── */}
                 {!loading && !fetchError && users && users.length > 0 && (
                     <div className="card-header py-3 border-top">
                         <div className="row align-items-center g-2 w-100">
-                            {/* Search input */}
                             <div className="col-lg-5 col-6">
                                 <div className="position-relative">
                                     <FiSearch
@@ -270,7 +245,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                                 </div>
                             </div>
 
-                            {/* Filter pills */}
                             <div className="col-lg-5 col-md-4 col-5 d-flex gap-1 flex-wrap">
                                 {[
                                     { key: 'all', label: 'All' },
@@ -291,7 +265,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                                 ))}
                             </div>
 
-                            {/* Add user button */}
                             <div className="col-lg-2 col-md-2 text-end col-4">
                                 <Link href="/add-users" className="btn btn-sm btn-primary">
                                     <FiPlus size={14} className="me-1" />
@@ -300,7 +273,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                             </div>
                         </div>
 
-                        {/* Filter result count */}
                         {searchQuery.trim() && filteredUsers && (
                             <div className="mt-2">
                                 <span className="fs-11 text-muted">
@@ -317,10 +289,8 @@ const ViewUsers = ({ title = 'Users' }) => {
                     </div>
                 )}
 
-                {/* ── Table Body ──────────────────────────── */}
                 <div className="card-body custom-card-action p-0">
 
-                    {/* ── LOADING: Skeleton table ─────────── */}
                     {loading && (
                         <div className="table-responsive">
                             <table className="table table-hover mb-0">
@@ -334,7 +304,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                         </div>
                     )}
 
-                    {/* ── ERROR ───────────────────────────── */}
                     {!loading && fetchError && (
                         <div className="d-flex flex-column align-items-center justify-content-center py-5">
                             <div
@@ -351,7 +320,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                         </div>
                     )}
 
-                    {/* ── EMPTY: No users at all ──────────── */}
                     {!loading && !fetchError && (!users || users.length === 0) && (
                         <div className="d-flex flex-column align-items-center justify-content-center py-5">
                             <div
@@ -368,7 +336,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                         </div>
                     )}
 
-                    {/* ── EMPTY: No search results ────────── */}
                     {!loading && !fetchError && users && users.length > 0 && filteredUsers && filteredUsers.length === 0 && (
                         <div className="d-flex flex-column align-items-center justify-content-center py-5">
                             <FiSearch size={28} className="text-muted mb-3" />
@@ -386,7 +353,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                         </div>
                     )}
 
-                    {/* ── DATA TABLE ──────────────────────── */}
                     {!loading && !fetchError && filteredUsers && filteredUsers.length > 0 && (
                         <div className="table-responsive">
                             <table className="table table-hover mb-0">
@@ -404,8 +370,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                                                     transition: 'opacity 0.2s ease',
                                                 }}
                                             >
-                                                {/* {console.log(process.env.NEXT_PUBLIC_S3_BASE_URL,"/",user.profileURL)} */}
-                                                {/* User: avatar + name + email */}
                                                 <td>
                                                     <div className="d-flex align-items-center gap-3">
                                                         {hasValidImage(user.profileURL) ? (
@@ -437,39 +401,32 @@ const ViewUsers = ({ title = 'Users' }) => {
                                                     </div>
                                                 </td>
 
-                                                {/* Roll No */}
                                                 <td>
                                                     <span className="badge bg-gray-200 text-dark">{user.rollNo || '—'}</span>
                                                 </td>
 
-                                                {/* Organization */}
                                                 <td>
                                                     <span className="fs-12">{user.organizationName || '—'}</span>
                                                 </td>
 
-                                                {/* Branch */}
                                                 <td>
                                                     <span className="fs-12">{user.branchName || '—'}</span>
                                                 </td>
 
-                                                {/* Phone */}
                                                 <td>
                                                     <span className="fs-12">{user.phoneNo || '—'}</span>
                                                 </td>
 
-                                                {/* User Type */}
                                                 <td>
                                                     <span className={`badge bg-soft-${getUserTypeColor(user.userType)} text-${getUserTypeColor(user.userType)}`}>
                                                         {user.userType || 'user'}
                                                     </span>
                                                 </td>
 
-                                                {/* Joined date */}
                                                 <td>
                                                     <span className="fs-12 text-muted">{formatDate(user.createdAt)}</span>
                                                 </td>
 
-                                                {/* Actions */}
                                                 <td className="text-end">
                                                     {isThisDeleting ? (
                                                         <RotatingLines visible height="18" width="18" color="grey" strokeWidth="5" animationDuration="0.75" />
@@ -518,7 +475,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                     )}
                 </div>
 
-                {/* ── Footer with Pagination ──────────────── */}
                 {!loading && !fetchError && users && users.length > 0 && (
                     <div className="card-footer d-flex align-items-center justify-content-between">
                         <span className="fs-11 text-muted">
