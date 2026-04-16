@@ -481,14 +481,14 @@ const AddUsers = () => {
         setBulkResult(null)
 
         const formData = new FormData()
-        formData.append('orgId', bulkForm.organization)
-        formData.append('branchId', bulkForm.branch)
+        formData.append('org', bulkForm.organization)
+        formData.append('branch', bulkForm.branch)
         formData.append('file', csvFile)
 
         try {
             setSubmitting(true)
             const response = await axios.post(
-                `${process.env.NEXT_PUBLIC_API_URL}/add-users-bulk-upload`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/add-users-bulk-upload`,
                 formData,
                 { withCredentials: true, headers: { 'Content-Type': 'multipart/form-data' } }
             )

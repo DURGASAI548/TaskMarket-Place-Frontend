@@ -193,9 +193,10 @@ const ViewUsers = ({ title = 'Users' }) => {
 
     const getUserTypeColor = (type) => {
         const t = (type || '').toLowerCase()
-        if (t === 'admin') return 'primary'
-        if (t === 'superadmin' || t === 'super_admin') return 'danger'
-        if (t === 'moderator') return 'warning'
+        // console.log(t)
+        if (t === 'branchadmin') return 'primary'
+        if (t === 'superadmin') return 'danger'
+        if (t === 'orgadmin') return 'warning'
         return 'success'
     }
 
@@ -236,7 +237,7 @@ const ViewUsers = ({ title = 'Users' }) => {
                     <div className="card-header py-3 border-top">
                         <div className="row align-items-center g-2 w-100">
                             {/* Search input */}
-                            <div className="col-lg-5 col-md-6">
+                            <div className="col-lg-5 col-6">
                                 <div className="position-relative">
                                     <FiSearch
                                         size={14}
@@ -270,7 +271,7 @@ const ViewUsers = ({ title = 'Users' }) => {
                             </div>
 
                             {/* Filter pills */}
-                            <div className="col-lg-5 col-md-4 d-flex gap-1 flex-wrap">
+                            <div className="col-lg-5 col-md-4 col-5 d-flex gap-1 flex-wrap">
                                 {[
                                     { key: 'all', label: 'All' },
                                     { key: 'name', label: 'Name' },
@@ -291,7 +292,7 @@ const ViewUsers = ({ title = 'Users' }) => {
                             </div>
 
                             {/* Add user button */}
-                            <div className="col-lg-2 col-md-2 text-end">
+                            <div className="col-lg-2 col-md-2 text-end col-4">
                                 <Link href="/add-users" className="btn btn-sm btn-primary">
                                     <FiPlus size={14} className="me-1" />
                                     Add User
@@ -403,7 +404,7 @@ const ViewUsers = ({ title = 'Users' }) => {
                                                     transition: 'opacity 0.2s ease',
                                                 }}
                                             >
-                                                {console.log(process.env.NEXT_PUBLIC_S3_BASE_URL,"/",user.profileURL)}
+                                                {/* {console.log(process.env.NEXT_PUBLIC_S3_BASE_URL,"/",user.profileURL)} */}
                                                 {/* User: avatar + name + email */}
                                                 <td>
                                                     <div className="d-flex align-items-center gap-3">
