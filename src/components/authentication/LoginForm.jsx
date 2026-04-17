@@ -15,7 +15,6 @@ import { useRouter } from 'next/navigation'
 const validateIdentifier = (value) => {
     const trimmed = value.trim()
     if (!trimmed) return 'Email or username is required'
-
     if (trimmed.includes('@')) {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return 'Enter a valid email address'
         if (trimmed.length > 254) return 'Email must be under 254 characters'
@@ -23,7 +22,7 @@ const validateIdentifier = (value) => {
         if (trimmed.length < 3) return 'Username must be at least 3 characters'
         if (trimmed.length > 50) return 'Username must be under 50 characters'
         if (!/^[a-zA-Z0-9._-]+$/.test(trimmed))
-            return 'Username can only contain letters, numbers, dots, hyphens, and underscores'
+            return 'Only letters, numbers, dots, hyphens, and underscores'
     }
     return ''
 }
@@ -51,35 +50,52 @@ const validateConfirmPassword = (password, confirm) => {
 }
 
 // ══════════════════════════════════════════════════════════
-// STATE MANAGEMENT (useReducer for complex multi-step flow)
+// SAFE ERROR EXTRACTION
+// ══════════════════════════════════════════════════════════
+
+const extractErrorMsg = (err, fallback) => {
+    const msg = err?.response?.data?.message
+    if (typeof msg === 'string') return msg
+    if (typeof msg === 'object' && msg !== null) return JSON.stringify(msg)
+    return fallback
+}
+
+// ══════════════════════════════════════════════════════════
+// STEPS — Two possible flows:
+//
+// Flow A (verified user):   IDENTIFIER → LOGIN_PASSWORD → done
+// Flow B (unverified user): IDENTIFIER → OTP → SET_PASSWORD → done
 // ══════════════════════════════════════════════════════════
 
 const STEPS = {
     IDENTIFIER: 'IDENTIFIER',
-    OTP: 'OTP',
-    SET_PASSWORD: 'SET_PASSWORD',
+    LOGIN_PASSWORD: 'LOGIN_PASSWORD',  // Already verified → just login
+    OTP: 'OTP',                         // Not verified → verify email first
+    SET_PASSWORD: 'SET_PASSWORD',       // After OTP → create password
 }
 
 const OTP_COOLDOWN_SECONDS = 60
 
 const initialState = {
-    // Flow
     step: STEPS.IDENTIFIER,
-
-    // Shared across steps
     identifier: '',
 
-    // Step 1: Identifier
+    // Step 1
     identifierError: '',
     identifierTouched: false,
 
-    // Step 2: OTP
+    // Login password (verified user flow)
+    loginPassword: '',
+    loginPasswordError: '',
+    loginPasswordTouched: false,
+
+    // OTP (unverified user flow)
     otp: '',
     otpError: '',
     otpTouched: false,
-    resendCooldown: 0, // seconds remaining before resend is allowed
+    resendCooldown: 0,
 
-    // Step 3: Set Password
+    // Set password (after OTP)
     password: '',
     confirmPassword: '',
     passwordError: '',
@@ -92,9 +108,12 @@ const initialState = {
     apiError: '',
 }
 
+// ══════════════════════════════════════════════════════════
+// REDUCER
+// ══════════════════════════════════════════════════════════
+
 const reducer = (state, action) => {
     switch (action.type) {
-        // ── Field updates ─────────────────────────────
         case 'SET_FIELD':
             return { ...state, [action.field]: action.value, apiError: '' }
 
@@ -102,6 +121,17 @@ const reducer = (state, action) => {
             return { ...state, ...action.fields, apiError: '' }
 
         // ── Step transitions ──────────────────────────
+        case 'GOTO_LOGIN_PASSWORD':
+            return {
+                ...state,
+                step: STEPS.LOGIN_PASSWORD,
+                loginPassword: '',
+                loginPasswordError: '',
+                loginPasswordTouched: false,
+                isSubmitting: false,
+                apiError: '',
+            }
+
         case 'GOTO_OTP':
             return {
                 ...state,
@@ -129,16 +159,12 @@ const reducer = (state, action) => {
             }
 
         case 'GOTO_IDENTIFIER':
-            return {
-                ...initialState,
-                identifier: state.identifier,
-            }
+            return { ...initialState, identifier: state.identifier }
 
-        // ── Loading ───────────────────────────────────
+        // ── Loading / errors ──────────────────────────
         case 'SET_SUBMITTING':
             return { ...state, isSubmitting: action.value }
 
-        // ── Errors ────────────────────────────────────
         case 'SET_API_ERROR':
             return { ...state, apiError: action.value, isSubmitting: false }
 
@@ -163,60 +189,46 @@ const LoginForm = ({ registerPath, resetPath }) => {
     const router = useRouter()
     const [state, dispatch] = useReducer(reducer, initialState)
 
-    // Refs for auto-focus
     const identifierRef = useRef(null)
+    const loginPasswordRef = useRef(null)
     const otpRef = useRef(null)
     const passwordRef = useRef(null)
     const confirmPasswordRef = useRef(null)
 
+    const API = process.env.NEXT_PUBLIC_API_URL
+
+    // Is the user in the "new account" step flow?
+    const isSetupFlow = state.step === STEPS.OTP || state.step === STEPS.SET_PASSWORD
+
     // ── OTP Countdown Timer ─────────────────────────────
     useEffect(() => {
         if (state.step !== STEPS.OTP || state.resendCooldown <= 0) return
-
-        const timer = setInterval(() => {
-            dispatch({ type: 'TICK_COOLDOWN' })
-        }, 1000)
-
+        const timer = setInterval(() => dispatch({ type: 'TICK_COOLDOWN' }), 1000)
         return () => clearInterval(timer)
     }, [state.step, state.resendCooldown])
 
     // ── Auto-focus on step change ───────────────────────
     useEffect(() => {
-        const timeout = setTimeout(() => {
+        const t = setTimeout(() => {
             if (state.step === STEPS.IDENTIFIER) identifierRef.current?.focus()
+            else if (state.step === STEPS.LOGIN_PASSWORD) loginPasswordRef.current?.focus()
             else if (state.step === STEPS.OTP) otpRef.current?.focus()
             else if (state.step === STEPS.SET_PASSWORD) passwordRef.current?.focus()
         }, 100)
-        return () => clearTimeout(timeout)
+        return () => clearTimeout(t)
     }, [state.step])
 
-    // ── API base ────────────────────────────────────────
-    const API = process.env.NEXT_PUBLIC_API_URL
-
-    // ── Safe error message extractor ────────────────────
-    // API might return message as string, object, or array
-    const extractErrorMsg = (err, fallback) => {
-        const msg = err?.response?.data?.message
-        if (typeof msg === 'string') return msg
-        if (typeof msg === 'object' && msg !== null) return JSON.stringify(msg)
-        return fallback
-    }
-
     // ══════════════════════════════════════════════════════
-    // STEP 1: Check User / Send OTP
+    // STEP 1: Check identifier → decide which flow
     // ══════════════════════════════════════════════════════
 
     const handleIdentifierSubmit = useCallback(async (e) => {
         e.preventDefault()
-
         dispatch({ type: 'SET_FIELD', field: 'identifierTouched', value: true })
 
         const error = validateIdentifier(state.identifier)
         dispatch({ type: 'SET_FIELD', field: 'identifierError', value: error })
-        if (error) {
-            identifierRef.current?.focus()
-            return
-        }
+        if (error) { identifierRef.current?.focus(); return }
 
         try {
             dispatch({ type: 'SET_SUBMITTING', value: true })
@@ -227,19 +239,19 @@ const LoginForm = ({ registerPath, resetPath }) => {
                 { withCredentials: true }
             )
 
-            const message = res.data?.message || ''
+            const rawMsg = res.data?.message
+            const message = typeof rawMsg === 'string' ? rawMsg.toLowerCase() : ''
 
-            if (message.toLowerCase().includes('already verified')) {
-                // User already verified → go straight to set password
-                dispatch({ type: 'GOTO_SET_PASSWORD' })
-                topTost?.('success', 'Account verified. Please set your password.')
+            if (message.includes('already verified')) {
+                // ✅ User already has a password → simple login flow
+                dispatch({ type: 'GOTO_LOGIN_PASSWORD' })
             } else {
-                // OTP sent → go to OTP step
+                // 📧 OTP sent → new account setup flow
                 dispatch({ type: 'GOTO_OTP' })
                 topTost?.('success', 'OTP sent to your registered email.')
             }
         } catch (err) {
-            console.error('Check user OTP failed:', err)
+            console.error('Check user failed:', err)
             const msg = extractErrorMsg(err, 'Something went wrong. Please try again.')
             dispatch({ type: 'SET_API_ERROR', value: msg })
             topTost?.('error', msg)
@@ -247,30 +259,57 @@ const LoginForm = ({ registerPath, resetPath }) => {
     }, [state.identifier, API])
 
     // ══════════════════════════════════════════════════════
-    // STEP 2: Verify OTP
+    // LOGIN PASSWORD (verified user — simple login)
+    // ══════════════════════════════════════════════════════
+
+    const handleLoginSubmit = useCallback(async (e) => {
+        e.preventDefault()
+        dispatch({ type: 'SET_FIELD', field: 'loginPasswordTouched', value: true })
+
+        const error = validatePassword(state.loginPassword)
+        dispatch({ type: 'SET_FIELD', field: 'loginPasswordError', value: error })
+        if (error) { loginPasswordRef.current?.focus(); return }
+
+        try {
+            dispatch({ type: 'SET_SUBMITTING', value: true })
+
+            const res = await axios.post(
+                `${API}/api/login`,
+                {
+                    identifier: state.identifier.trim(),
+                    password: state.loginPassword,
+                },
+                { withCredentials: true }
+            )
+
+            loginStore(res.data.user)
+            router.push('/')
+        } catch (err) {
+            console.error('Login failed:', err)
+            const msg = extractErrorMsg(err, 'Login failed. Please check your credentials.')
+            dispatch({ type: 'SET_API_ERROR', value: msg })
+            topTost?.('error', msg)
+        }
+    }, [state.identifier, state.loginPassword, API, loginStore, router])
+
+    // ══════════════════════════════════════════════════════
+    // STEP 2: Verify OTP (unverified user flow)
     // ══════════════════════════════════════════════════════
 
     const handleOtpSubmit = useCallback(async (e) => {
         e.preventDefault()
-
         dispatch({ type: 'SET_FIELD', field: 'otpTouched', value: true })
 
         const error = validateOtp(state.otp)
         dispatch({ type: 'SET_FIELD', field: 'otpError', value: error })
-        if (error) {
-            otpRef.current?.focus()
-            return
-        }
+        if (error) { otpRef.current?.focus(); return }
 
         try {
             dispatch({ type: 'SET_SUBMITTING', value: true })
 
             await axios.post(
                 `${API}/api/verify-otp`,
-                {
-                    identifier: state.identifier.trim(),
-                    otp: state.otp.trim(),
-                },
+                { identifier: state.identifier.trim(), otp: state.otp.trim() },
                 { withCredentials: true }
             )
 
@@ -278,7 +317,7 @@ const LoginForm = ({ registerPath, resetPath }) => {
             dispatch({ type: 'GOTO_SET_PASSWORD' })
         } catch (err) {
             console.error('OTP verification failed:', err)
-            const msg = err?.response?.data?.message || 'OTP verification failed. Please try again.'
+            const msg = extractErrorMsg(err, 'OTP verification failed. Please try again.')
             dispatch({ type: 'SET_API_ERROR', value: msg })
             topTost?.('error', msg)
         }
@@ -304,67 +343,49 @@ const LoginForm = ({ registerPath, resetPath }) => {
             otpRef.current?.focus()
         } catch (err) {
             console.error('Resend OTP failed:', err)
-            const msg = err?.response?.data?.message || 'Failed to resend OTP.'
+            const msg = extractErrorMsg(err, 'Failed to resend OTP.')
             dispatch({ type: 'SET_API_ERROR', value: msg })
             topTost?.('error', msg)
         }
     }, [state.identifier, state.resendCooldown, state.isSubmitting, API])
 
     // ══════════════════════════════════════════════════════
-    // STEP 3: Set Password
+    // STEP 3: Set Password (after OTP verification)
     // ══════════════════════════════════════════════════════
 
-    const handlePasswordSubmit = useCallback(async (e) => {
+    const handleSetPasswordSubmit = useCallback(async (e) => {
         e.preventDefault()
+        dispatch({ type: 'SET_FIELDS', fields: { passwordTouched: true, confirmPasswordTouched: true } })
 
-        dispatch({
-            type: 'SET_FIELDS',
-            fields: { passwordTouched: true, confirmPasswordTouched: true },
-        })
+        const pwErr = validatePassword(state.password)
+        const cpErr = validateConfirmPassword(state.password, state.confirmPassword)
+        dispatch({ type: 'SET_FIELDS', fields: { passwordError: pwErr, confirmPasswordError: cpErr } })
 
-        const pwError = validatePassword(state.password)
-        const cpError = validateConfirmPassword(state.password, state.confirmPassword)
-
-        dispatch({
-            type: 'SET_FIELDS',
-            fields: { passwordError: pwError, confirmPasswordError: cpError },
-        })
-
-        if (pwError) {
-            passwordRef.current?.focus()
-            return
-        }
-        if (cpError) {
-            confirmPasswordRef.current?.focus()
-            return
-        }
+        if (pwErr) { passwordRef.current?.focus(); return }
+        if (cpErr) { confirmPasswordRef.current?.focus(); return }
 
         try {
             dispatch({ type: 'SET_SUBMITTING', value: true })
 
             const res = await axios.post(
                 `${API}/api/set-password`,
-                {
-                    identifier: state.identifier.trim(),
-                    password: state.password,
-                },
+                { identifier: state.identifier.trim(), password: state.password },
                 { withCredentials: true }
             )
 
             topTost?.('success', 'Password set successfully!')
 
-            // If the API returns user data, store it and redirect
             if (res.data?.user) {
                 loginStore(res.data.user)
                 router.push('/')
             } else {
-                // Otherwise reset to identifier step for normal login
-                dispatch({ type: 'GOTO_IDENTIFIER' })
-                topTost?.('info', 'Please login with your new password.')
+                // Go to login password step so they can login immediately
+                dispatch({ type: 'GOTO_LOGIN_PASSWORD' })
+                topTost?.('success', 'Now login with your new password.')
             }
         } catch (err) {
             console.error('Set password failed:', err)
-            const msg = err?.response?.data?.message || 'Failed to set password. Please try again.'
+            const msg = extractErrorMsg(err, 'Failed to set password. Please try again.')
             dispatch({ type: 'SET_API_ERROR', value: msg })
             topTost?.('error', msg)
         } finally {
@@ -376,131 +397,53 @@ const LoginForm = ({ registerPath, resetPath }) => {
     // FIELD CHANGE HANDLERS
     // ══════════════════════════════════════════════════════
 
-    const handleIdentifierChange = (value) => {
-        dispatch({ type: 'SET_FIELD', field: 'identifier', value })
-        if (state.identifierTouched) {
-            dispatch({ type: 'SET_FIELD', field: 'identifierError', value: validateIdentifier(value) })
-        }
+    const handleIdentifierChange = (v) => {
+        dispatch({ type: 'SET_FIELD', field: 'identifier', value: v })
+        if (state.identifierTouched)
+            dispatch({ type: 'SET_FIELD', field: 'identifierError', value: validateIdentifier(v) })
     }
 
-    const handleOtpChange = (value) => {
-        // Only allow digits
-        const digits = value.replace(/\D/g, '').slice(0, 8)
+    const handleLoginPasswordChange = (v) => {
+        dispatch({ type: 'SET_FIELD', field: 'loginPassword', value: v })
+        if (state.loginPasswordTouched)
+            dispatch({ type: 'SET_FIELD', field: 'loginPasswordError', value: validatePassword(v) })
+    }
+
+    const handleOtpChange = (v) => {
+        const digits = v.replace(/\D/g, '').slice(0, 8)
         dispatch({ type: 'SET_FIELD', field: 'otp', value: digits })
-        if (state.otpTouched) {
+        if (state.otpTouched)
             dispatch({ type: 'SET_FIELD', field: 'otpError', value: validateOtp(digits) })
-        }
     }
 
-    const handlePasswordChange = (value) => {
-        dispatch({ type: 'SET_FIELD', field: 'password', value })
-        if (state.passwordTouched) {
-            dispatch({ type: 'SET_FIELD', field: 'passwordError', value: validatePassword(value) })
-        }
-        // Also revalidate confirm if it's been touched
-        if (state.confirmPasswordTouched) {
-            dispatch({
-                type: 'SET_FIELD',
-                field: 'confirmPasswordError',
-                value: validateConfirmPassword(value, state.confirmPassword),
-            })
-        }
+    const handlePasswordChange = (v) => {
+        dispatch({ type: 'SET_FIELD', field: 'password', value: v })
+        if (state.passwordTouched)
+            dispatch({ type: 'SET_FIELD', field: 'passwordError', value: validatePassword(v) })
+        if (state.confirmPasswordTouched)
+            dispatch({ type: 'SET_FIELD', field: 'confirmPasswordError', value: validateConfirmPassword(v, state.confirmPassword) })
     }
 
-    const handleConfirmPasswordChange = (value) => {
-        dispatch({ type: 'SET_FIELD', field: 'confirmPassword', value })
-        if (state.confirmPasswordTouched) {
-            dispatch({
-                type: 'SET_FIELD',
-                field: 'confirmPasswordError',
-                value: validateConfirmPassword(state.password, value),
-            })
-        }
+    const handleConfirmPasswordChange = (v) => {
+        dispatch({ type: 'SET_FIELD', field: 'confirmPassword', value: v })
+        if (state.confirmPasswordTouched)
+            dispatch({ type: 'SET_FIELD', field: 'confirmPasswordError', value: validateConfirmPassword(state.password, v) })
     }
 
     // ══════════════════════════════════════════════════════
-    // STEP INDICATOR
+    // UI HELPERS
     // ══════════════════════════════════════════════════════
 
-    const stepNumber = state.step === STEPS.IDENTIFIER ? 1 : state.step === STEPS.OTP ? 2 : 3
+    const stepNumber = state.step === STEPS.OTP ? 2 : state.step === STEPS.SET_PASSWORD ? 3 : 1
 
-    const StepIndicator = () => (
-        <div className="d-flex align-items-center justify-content-center gap-2 mb-4">
-            {[1, 2, 3].map((num) => (
-                <React.Fragment key={num}>
-                    <div
-                        className="d-flex align-items-center justify-content-center rounded-circle"
-                        style={{
-                            width: 28,
-                            height: 28,
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            transition: 'all 0.3s ease',
-                            background: num < stepNumber ? '#10b981' : num === stepNumber ? '#4f46e5' : '#e5e7eb',
-                            color: num <= stepNumber ? '#fff' : '#9ca3af',
-                        }}
-                    >
-                        {num < stepNumber ? '✓' : num}
-                    </div>
-                    {num < 3 && (
-                        <div
-                            style={{
-                                width: 40,
-                                height: 2,
-                                borderRadius: 1,
-                                transition: 'all 0.3s ease',
-                                background: num < stepNumber ? '#10b981' : '#e5e7eb',
-                            }}
-                        />
-                    )}
-                </React.Fragment>
-            ))}
-        </div>
-    )
-
-    // ══════════════════════════════════════════════════════
-    // API ERROR BANNER
-    // ══════════════════════════════════════════════════════
-
-    const ErrorBanner = () =>
-        state.apiError ? (
-            <div className="alert alert-danger d-flex align-items-center py-2 px-3 mb-3" role="alert">
-                <span className="me-2">⚠</span>
-                <span className="fs-12 flex-grow-1">{state.apiError}</span>
-                <button
-                    type="button"
-                    className="btn-close btn-close-sm ms-2"
-                    style={{ fontSize: '0.6rem' }}
-                    onClick={() => dispatch({ type: 'SET_FIELD', field: 'apiError', value: '' })}
-                />
-            </div>
-        ) : null
-
-    // ══════════════════════════════════════════════════════
-    // SUBMIT BUTTON HELPER
-    // ══════════════════════════════════════════════════════
-
-    const SubmitButton = ({ label, loadingLabel }) => (
-        <button
-            type="submit"
-            className="btn btn-lg btn-primary w-100"
-            disabled={state.isSubmitting}
-        >
+    const SubmitBtn = ({ label, loadingLabel }) => (
+        <button type="submit" className="btn btn-lg btn-primary w-100" disabled={state.isSubmitting}>
             {state.isSubmitting ? (
                 <span className="d-flex align-items-center justify-content-center gap-2">
-                    <RotatingLines
-                        visible={true}
-                        height="24"
-                        width="24"
-                        color="white"
-                        strokeWidth="5"
-                        animationDuration="0.75"
-                    />
+                    <RotatingLines visible height="24" width="24" color="white" strokeWidth="5" animationDuration="0.75" />
                     {loadingLabel}
                 </span>
-            ) : (
-                label
-            )}
+            ) : label}
         </button>
     )
 
@@ -510,46 +453,92 @@ const LoginForm = ({ registerPath, resetPath }) => {
 
     return (
         <>
+            {/* ── Title ───────────────────────────────────── */}
             <h2 className="fs-20 fw-bolder mb-4 d-flex justify-content-center">
                 {state.step === STEPS.IDENTIFIER && 'Login'}
-                {state.step === STEPS.OTP && 'Verify OTP'}
+                {state.step === STEPS.LOGIN_PASSWORD && 'Login'}
+                {state.step === STEPS.OTP && 'Verify Email'}
                 {state.step === STEPS.SET_PASSWORD && 'Set Password'}
             </h2>
 
-            <StepIndicator />
+            {/* ── Step indicator (only for setup flow) ────── */}
+            {isSetupFlow && (
+                <div className="d-flex align-items-center justify-content-center gap-2 mb-4">
+                    {[
+                        { num: 1, label: 'Email' },
+                        { num: 2, label: 'Verify' },
+                        { num: 3, label: 'Password' },
+                    ].map(({ num, label }) => (
+                        <React.Fragment key={num}>
+                            <div className="text-center">
+                                <div
+                                    className="d-flex align-items-center justify-content-center rounded-circle mx-auto"
+                                    style={{
+                                        width: 28, height: 28,
+                                        fontSize: '0.7rem', fontWeight: 700,
+                                        transition: 'all 0.3s ease',
+                                        background: num < stepNumber ? '#10b981' : num === stepNumber ? '#4f46e5' : '#e5e7eb',
+                                        color: num <= stepNumber ? '#fff' : '#9ca3af',
+                                    }}
+                                >
+                                    {num < stepNumber ? '✓' : num}
+                                </div>
+                                <div className="fs-10 text-muted mt-1">{label}</div>
+                            </div>
+                            {num < 3 && (
+                                <div
+                                    style={{
+                                        width: 36, height: 2, borderRadius: 1, marginBottom: 16,
+                                        transition: 'all 0.3s ease',
+                                        background: num < stepNumber ? '#10b981' : '#e5e7eb',
+                                    }}
+                                />
+                            )}
+                        </React.Fragment>
+                    ))}
+                </div>
+            )}
 
-            {/* ── Step subtitle ───────────────────────────── */}
+            {/* ── Subtitle ────────────────────────────────── */}
             <div className="text-center mb-4">
                 {state.step === STEPS.IDENTIFIER && (
-                    <>
-                        <h4 className="fs-13 fw-bold mb-1">Login to your account</h4>
-                        <p className="fs-12 fw-medium text-muted mb-0">
-                            Enter your email or username to get started.
-                        </p>
-                    </>
+                    <p className="fs-12 fw-medium text-muted mb-0">Enter your email or username to continue.</p>
+                )}
+                {state.step === STEPS.LOGIN_PASSWORD && (
+                    <p className="fs-12 fw-medium text-muted mb-0">
+                        Welcome back, <strong>{state.identifier}</strong>
+                    </p>
                 )}
                 {state.step === STEPS.OTP && (
-                    <>
-                        <h4 className="fs-13 fw-bold mb-1">Check your email</h4>
-                        <p className="fs-12 fw-medium text-muted mb-0">
-                            We sent a verification code to <strong>{state.identifier}</strong>
-                        </p>
-                    </>
+                    <p className="fs-12 fw-medium text-muted mb-0">
+                        We sent a code to <strong>{state.identifier}</strong>
+                    </p>
                 )}
                 {state.step === STEPS.SET_PASSWORD && (
-                    <>
-                        <h4 className="fs-13 fw-bold mb-1">Create your password</h4>
-                        <p className="fs-12 fw-medium text-muted mb-0">
-                            Set a secure password for <strong>{state.identifier}</strong>
-                        </p>
-                    </>
+                    <p className="fs-12 fw-medium text-muted mb-0">
+                        Create a password for <strong>{state.identifier}</strong>
+                    </p>
                 )}
             </div>
 
-            <ErrorBanner />
+            {/* ── API Error Banner ────────────────────────── */}
+            {state.apiError && (
+                <div className="alert alert-danger d-flex align-items-center py-2 px-3 mb-3" role="alert">
+                    <span className="me-2">⚠</span>
+                    <span className="fs-12 flex-grow-1">
+                        {typeof state.apiError === 'string' ? state.apiError : 'Something went wrong.'}
+                    </span>
+                    <button
+                        type="button"
+                        className="btn-close btn-close-sm ms-2"
+                        style={{ fontSize: '0.6rem' }}
+                        onClick={() => dispatch({ type: 'SET_FIELD', field: 'apiError', value: '' })}
+                    />
+                </div>
+            )}
 
             {/* ══════════════════════════════════════════════
-                STEP 1: IDENTIFIER
+                STEP: IDENTIFIER
                ══════════════════════════════════════════════ */}
             {state.step === STEPS.IDENTIFIER && (
                 <form onSubmit={handleIdentifierSubmit} className="w-100" noValidate>
@@ -558,13 +547,7 @@ const LoginForm = ({ registerPath, resetPath }) => {
                         <input
                             ref={identifierRef}
                             type="text"
-                            className={`form-control ${
-                                state.identifierTouched
-                                    ? state.identifierError
-                                        ? 'is-invalid'
-                                        : 'is-valid'
-                                    : ''
-                            }`}
+                            className={`form-control ${state.identifierTouched ? (state.identifierError ? 'is-invalid' : 'is-valid') : ''}`}
                             placeholder="Enter your email or username"
                             value={state.identifier}
                             onChange={(e) => handleIdentifierChange(e.target.value)}
@@ -580,15 +563,65 @@ const LoginForm = ({ registerPath, resetPath }) => {
                             <div className="invalid-feedback">{state.identifierError}</div>
                         )}
                     </div>
-
                     <div className="mt-4">
-                        <SubmitButton label="Continue" loadingLabel="Checking..." />
+                        <SubmitBtn label="Continue" loadingLabel="Checking..." />
                     </div>
                 </form>
             )}
 
             {/* ══════════════════════════════════════════════
-                STEP 2: OTP VERIFICATION
+                LOGIN PASSWORD (verified user — simple login)
+               ══════════════════════════════════════════════ */}
+            {state.step === STEPS.LOGIN_PASSWORD && (
+                <form onSubmit={handleLoginSubmit} className="w-100" noValidate>
+                    {/* Show identifier as read-only context */}
+                    <div className="mb-3">
+                        <label className="form-label fs-12 fw-semibold">Account</label>
+                        <div className="d-flex align-items-center gap-2 p-2 rounded-2" style={{ background: '#f3f4f6' }}>
+                            <span className="fs-13 fw-medium flex-grow-1">{state.identifier}</span>
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-link text-decoration-none p-0 fs-11"
+                                onClick={() => dispatch({ type: 'GOTO_IDENTIFIER' })}
+                                disabled={state.isSubmitting}
+                            >
+                                Change
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="mb-3">
+                        <label className="form-label fs-12 fw-semibold">Password</label>
+                        <input
+                            ref={loginPasswordRef}
+                            type="password"
+                            className={`form-control ${state.loginPasswordTouched ? (state.loginPasswordError ? 'is-invalid' : 'is-valid') : ''}`}
+                            placeholder="Enter your password"
+                            value={state.loginPassword}
+                            onChange={(e) => handleLoginPasswordChange(e.target.value)}
+                            onBlur={() => {
+                                dispatch({ type: 'SET_FIELD', field: 'loginPasswordTouched', value: true })
+                                dispatch({ type: 'SET_FIELD', field: 'loginPasswordError', value: validatePassword(state.loginPassword) })
+                            }}
+                            disabled={state.isSubmitting}
+                            autoComplete="current-password"
+                        />
+                        {state.loginPasswordTouched && state.loginPasswordError && (
+                            <div className="invalid-feedback">{state.loginPasswordError}</div>
+                        )}
+                    </div>
+
+                    {/* Forgot password */}
+                    <div className="d-flex justify-content-end mb-3">
+                        <Link href={resetPath} className="fs-11 text-primary">Forgot password?</Link>
+                    </div>
+
+                    <SubmitBtn label="Login" loadingLabel="Logging in..." />
+                </form>
+            )}
+
+            {/* ══════════════════════════════════════════════
+                OTP VERIFICATION (unverified user flow)
                ══════════════════════════════════════════════ */}
             {state.step === STEPS.OTP && (
                 <form onSubmit={handleOtpSubmit} className="w-100" noValidate>
@@ -598,13 +631,7 @@ const LoginForm = ({ registerPath, resetPath }) => {
                             ref={otpRef}
                             type="text"
                             inputMode="numeric"
-                            className={`form-control text-center fw-bold fs-16 ${
-                                state.otpTouched
-                                    ? state.otpError
-                                        ? 'is-invalid'
-                                        : 'is-valid'
-                                    : ''
-                            }`}
+                            className={`form-control text-center fw-bold fs-16 ${state.otpTouched ? (state.otpError ? 'is-invalid' : 'is-valid') : ''}`}
                             placeholder="Enter OTP"
                             value={state.otp}
                             onChange={(e) => handleOtpChange(e.target.value)}
@@ -622,7 +649,7 @@ const LoginForm = ({ registerPath, resetPath }) => {
                     </div>
 
                     <div className="mt-4">
-                        <SubmitButton label="Verify OTP" loadingLabel="Verifying..." />
+                        <SubmitBtn label="Verify OTP" loadingLabel="Verifying..." />
                     </div>
 
                     {/* Resend OTP */}
@@ -643,7 +670,7 @@ const LoginForm = ({ registerPath, resetPath }) => {
                         )}
                     </div>
 
-                    {/* Back to step 1 */}
+                    {/* Back */}
                     <div className="text-center mt-3">
                         <button
                             type="button"
@@ -658,22 +685,16 @@ const LoginForm = ({ registerPath, resetPath }) => {
             )}
 
             {/* ══════════════════════════════════════════════
-                STEP 3: SET PASSWORD
+                SET PASSWORD (after OTP — new account setup)
                ══════════════════════════════════════════════ */}
             {state.step === STEPS.SET_PASSWORD && (
-                <form onSubmit={handlePasswordSubmit} className="w-100" noValidate>
+                <form onSubmit={handleSetPasswordSubmit} className="w-100" noValidate>
                     <div className="mb-4">
                         <label className="form-label fs-12 fw-semibold">New Password</label>
                         <input
                             ref={passwordRef}
                             type="password"
-                            className={`form-control ${
-                                state.passwordTouched
-                                    ? state.passwordError
-                                        ? 'is-invalid'
-                                        : 'is-valid'
-                                    : ''
-                            }`}
+                            className={`form-control ${state.passwordTouched ? (state.passwordError ? 'is-invalid' : 'is-valid') : ''}`}
                             placeholder="Enter new password"
                             value={state.password}
                             onChange={(e) => handlePasswordChange(e.target.value)}
@@ -688,7 +709,7 @@ const LoginForm = ({ registerPath, resetPath }) => {
                             <div className="invalid-feedback">{state.passwordError}</div>
                         )}
 
-                        {/* Password strength hints */}
+                        {/* Strength hints */}
                         {state.password && (
                             <div className="mt-2 d-flex flex-wrap gap-2">
                                 {[
@@ -715,23 +736,13 @@ const LoginForm = ({ registerPath, resetPath }) => {
                         <input
                             ref={confirmPasswordRef}
                             type="password"
-                            className={`form-control ${
-                                state.confirmPasswordTouched
-                                    ? state.confirmPasswordError
-                                        ? 'is-invalid'
-                                        : 'is-valid'
-                                    : ''
-                            }`}
+                            className={`form-control ${state.confirmPasswordTouched ? (state.confirmPasswordError ? 'is-invalid' : 'is-valid') : ''}`}
                             placeholder="Re-enter your password"
                             value={state.confirmPassword}
                             onChange={(e) => handleConfirmPasswordChange(e.target.value)}
                             onBlur={() => {
                                 dispatch({ type: 'SET_FIELD', field: 'confirmPasswordTouched', value: true })
-                                dispatch({
-                                    type: 'SET_FIELD',
-                                    field: 'confirmPasswordError',
-                                    value: validateConfirmPassword(state.password, state.confirmPassword),
-                                })
+                                dispatch({ type: 'SET_FIELD', field: 'confirmPasswordError', value: validateConfirmPassword(state.password, state.confirmPassword) })
                             }}
                             disabled={state.isSubmitting}
                             autoComplete="new-password"
@@ -741,11 +752,8 @@ const LoginForm = ({ registerPath, resetPath }) => {
                         )}
                     </div>
 
-                    <div className="mt-4">
-                        <SubmitButton label="Set Password" loadingLabel="Setting password..." />
-                    </div>
+                    <SubmitBtn label="Set Password & Continue" loadingLabel="Setting password..." />
 
-                    {/* Back to step 1 */}
                     <div className="text-center mt-3">
                         <button
                             type="button"
@@ -753,27 +761,23 @@ const LoginForm = ({ registerPath, resetPath }) => {
                             onClick={() => dispatch({ type: 'GOTO_IDENTIFIER' })}
                             disabled={state.isSubmitting}
                         >
-                            ← Start over with a different account
+                            ← Start over
                         </button>
                     </div>
                 </form>
             )}
 
-            {/* ── Forgot password link (step 1 only) ─────── */}
+            {/* ── Forgot password (step 1 only) ──────────── */}
             {state.step === STEPS.IDENTIFIER && (
                 <div className="d-flex align-items-center justify-content-end mt-3">
-                    <Link href={resetPath} className="fs-11 text-primary">
-                        Forgot password?
-                    </Link>
+                    <Link href={resetPath} className="fs-11 text-primary">Forgot password?</Link>
                 </div>
             )}
 
             {/* ── Register Link ──────────────────────────── */}
             <div className="mt-5 text-muted text-center">
                 <span>Don't have an account?</span>
-                <Link href={registerPath} className="fw-bold">
-                    {' '}Create an Account
-                </Link>
+                <Link href={registerPath} className="fw-bold"> Create an Account</Link>
             </div>
         </>
     )
