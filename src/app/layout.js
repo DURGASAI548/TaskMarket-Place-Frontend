@@ -8,8 +8,8 @@ import SettingSideBarProvider from "@/contentApi/settingSideBarProvider";
 // import ThemeCustomizer from "@/components/shared/ThemeCustomizer";
 
 export const metadata = {
-  title: "Team Market Place | Dashboard",
-  description: "Team Market Place Dashboard",
+  title: "Task Market Place | Dashboard",
+  description: "Task Market Place | Dashboard",
 };
 
 export default function RootLayout({ children }) {
