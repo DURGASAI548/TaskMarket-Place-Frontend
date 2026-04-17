@@ -273,7 +273,7 @@ const EditOrganizations = () => {
                       touched.orgName
                         ? errors.orgName
                           ? 'is-invalid'
-                          : 'is-valid'
+                          : ''
                         : ''
                     }`}
                     placeholder="Org Name"
@@ -352,7 +352,7 @@ const EditOrganizations = () => {
                       touched.description
                         ? errors.description
                           ? 'is-invalid'
-                          : 'is-valid'
+                          : ''
                         : ''
                     }`}
                     placeholder="Enter organization description (min 10 characters)"

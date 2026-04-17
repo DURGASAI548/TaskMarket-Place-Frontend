@@ -234,7 +234,7 @@ const AddBranch = () => {
                       touched.branchName
                         ? errors.branchName
                           ? 'is-invalid'
-                          : 'is-valid'
+                          : ''
                         : ''
                     }`}
                     placeholder="Branch Name"
@@ -362,7 +362,7 @@ const AddBranch = () => {
                       touched.description
                         ? errors.description
                           ? 'is-invalid'
-                          : 'is-valid'
+                          : ''
                         : ''
                     }`}
                     placeholder="Enter branch description (min 10 characters)"

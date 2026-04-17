@@ -183,7 +183,7 @@ const InputRow = ({ label, icon: Icon, fieldKey, type = 'text', inputRef, placeh
             <input
                 ref={inputRef}
                 type={type}
-                className={`form-control ${Icon ? 'ps-5' : ''} ${touched ? (error ? 'is-invalid' : 'is-valid') : ''}`}
+                className={`form-control ${Icon ? 'ps-5' : ''} ${touched ? (error ? 'is-invalid' : '') : ''}`}
                 placeholder={placeholder}
                 value={value}
                 onChange={(e) => onChange(fieldKey, e.target.value)}

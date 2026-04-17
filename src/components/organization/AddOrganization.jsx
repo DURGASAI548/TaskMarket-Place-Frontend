@@ -173,7 +173,7 @@ const AddOrganization = () => {
                       touched.orgName
                         ? errors.orgName
                           ? 'is-invalid'
-                          : 'is-valid'
+                          : ''
                         : ''
                     }`}
                     placeholder="Org Name"
@@ -252,7 +252,7 @@ const AddOrganization = () => {
                       touched.description
                         ? errors.description
                           ? 'is-invalid'
-                          : 'is-valid'
+                          : ''
                         : ''
                     }`}
                     placeholder="Enter organization description (min 10 characters)"

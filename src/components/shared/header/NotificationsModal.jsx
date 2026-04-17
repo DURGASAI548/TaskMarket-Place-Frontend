@@ -31,7 +31,7 @@ const NotificationsModal = () => {
         <div className="dropdown nxl-h-item">
             <div className="nxl-head-link me-3" data-bs-toggle="dropdown" role="button" data-bs-auto-close="outside">
                 <FiBell size={20} />
-                <span className="badge bg-danger nxl-h-badge">3</span>
+                <span className="badge bg-danger nxl-h-badge">0</span>
             </div>
             <div className="dropdown-menu dropdown-menu-end nxl-h-dropdown nxl-notifications-menu">
                 <div className="d-flex justify-content-between align-items-center notifications-head">
