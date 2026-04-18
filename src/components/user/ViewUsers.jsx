@@ -82,6 +82,9 @@ const ViewUsers = ({ title = 'Users' }) => {
     const [filterType, setFilterType] = useState('all')
 
     const [activeDropdown, setActiveDropdown] = useState(null)
+    useEffect(() => {
+        console.log(activeDropdown)
+    }, [activeDropdown])
 
     const fetchUsers = async () => {
         try {
@@ -109,11 +112,11 @@ const ViewUsers = ({ title = 'Users' }) => {
         if (refreshKey) fetchUsers()
     }, [refreshKey])
 
-    useEffect(() => {
-        const handleClickOutside = () => setActiveDropdown(null)
-        document.addEventListener('click', handleClickOutside)
-        return () => document.removeEventListener('click', handleClickOutside)
-    }, [])
+    // useEffect(() => {
+    //     const handleClickOutside = () => setActiveDropdown(null)
+    //     document.addEventListener('click', handleClickOutside)
+    //     return () => document.removeEventListener('click', handleClickOutside)
+    // }, [])
 
     const filteredUsers = useMemo(() => {
         if (!users) return null
@@ -391,7 +394,9 @@ const ViewUsers = ({ title = 'Users' }) => {
                                                         )}
                                                         <div>
                                                             <span className="d-block fw-medium">
-                                                                {user.name}
+                                                                {user.name && user.name.length > 20
+                                                                    ? user.name.substring(0, 20) + "..."
+                                                                    : user.name}
                                                                 {user.displayName && user.displayName !== user.name && (
                                                                     <span className="text-muted fw-normal fs-11 ms-1">({user.displayName})</span>
                                                                 )}
@@ -429,7 +434,9 @@ const ViewUsers = ({ title = 'Users' }) => {
 
                                                 <td className="text-end">
                                                     {isThisDeleting ? (
-                                                        <RotatingLines visible height="18" width="18" color="grey" strokeWidth="5" animationDuration="0.75" />
+                                                        <div className='d-flex justify-content-center align-items-center'>
+                                                            <RotatingLines visible height="25" width="25" color="grey" strokeWidth="5" animationDuration="0.75" />
+                                                        </div>
                                                     ) : (
                                                         <div className="position-relative d-inline-block">
                                                             <button
@@ -439,6 +446,7 @@ const ViewUsers = ({ title = 'Users' }) => {
                                                                     setActiveDropdown(activeDropdown === user._id ? null : user._id)
                                                                 }}
                                                                 disabled={isAnyDeleting}
+                                                            // disabled={true}
                                                             >
                                                                 <FiMoreVertical size={16} />
                                                             </button>
