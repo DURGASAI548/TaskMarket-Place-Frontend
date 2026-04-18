@@ -19,7 +19,7 @@ import axios from 'axios'
 
 const Home = () => {
   const router = useRouter()
-  const { isLogged, logout } = useAuthStore()
+  const { logout } = useAuthStore()
   const [verifying, setVerifying] = useState(true)
 
   useEffect(() => {
@@ -29,10 +29,12 @@ const Home = () => {
           `${process.env.NEXT_PUBLIC_API_URL}/api/verify-token`,
           { withCredentials: true }
         )
+        console.log(result)
         if (result.status === 200 && result.data.message === 'Valid token') {
           setVerifying(false)
         } else {
           logout()
+          console.log("else",result)
           router.push('/authentication/login/minimal')
         }
       } catch (err) {
@@ -41,12 +43,7 @@ const Home = () => {
         router.push('/authentication/login/minimal')
       }
     }
-
-    if (!isLogged) {
-      router.push('/authentication/login/minimal')
-    } else {
-      verifyToken()
-    }
+    verifyToken()
   }, [])
 
   if (verifying) {
