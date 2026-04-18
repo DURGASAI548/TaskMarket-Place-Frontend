@@ -59,7 +59,6 @@ const ProfileModal = () => {
     if (!isLogged || !user) {
         return null;
     }
-
     return (
         <div className="dropdown nxl-h-item">
             <a href="#" data-bs-toggle="dropdown" role="button" data-bs-auto-close="outside">
@@ -88,3 +87,6 @@ const ProfileModal = () => {
 }
 
 export default ProfileModal
+
+
+

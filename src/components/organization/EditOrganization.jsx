@@ -92,16 +92,28 @@ const EditOrganizations = () => {
             : org.orgAdminUser || null
 
         // If previous admin isn't in the users list, inject them
+        // if (adminId && !usersData.find((u) => u.value === adminId)) {
+        //   const adminObj = org.orgAdminUser
+        //   usersData.unshift({
+        //     value: adminId,
+        //     label:
+        //       typeof adminObj === 'object'
+        //         ? adminObj.name || adminObj.email || 'Unknown User'
+        //         : 'Previous Admin',
+        //     img:
+        //       typeof adminObj === 'object' ? adminObj.profileURL || '' : '',
+        //   })
+        //   setCurrencyOptionsData_1([...usersData])
+        // }
         if (adminId && !usersData.find((u) => u.value === adminId)) {
           const adminObj = org.orgAdminUser
+          console.log(adminObj)
+          console.log(org)
           usersData.unshift({
             value: adminId,
-            label:
-              typeof adminObj === 'object'
-                ? adminObj.name || adminObj.email || 'Unknown User'
-                : 'Previous Admin',
-            img:
-              typeof adminObj === 'object' ? adminObj.profileURL || '' : '',
+            label: adminObj.name || 'Previous Admin',
+             
+            img: adminObj.profileURL || '' ,
           })
           setCurrencyOptionsData_1([...usersData])
         }
