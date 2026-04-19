@@ -105,6 +105,7 @@ const EditOrganizations = () => {
         //   })
         //   setCurrencyOptionsData_1([...usersData])
         // }
+        
         if (adminId && !usersData.find((u) => u.value === adminId)) {
           const adminObj = org.orgAdminUser
           console.log(adminObj)
