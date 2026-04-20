@@ -6,6 +6,7 @@ import { flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel
 
 const Table = ({data, columns}) => {
     // const [data] = useState([...fackData])
+    console.log(data,columns)
     const [sorting, setSorting] = useState([])
     const [globalFilter, setGlobalFilter] = useState('')
     const [pagination, setPagination] = useState({

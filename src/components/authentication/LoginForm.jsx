@@ -336,7 +336,6 @@ const LoginForm = ({ registerPath, resetPath }) => {
         }
     }
 
-    // ── LOGIN: Set password ─────────────────────────────
     const handleSetPasswordSubmit = async (e) => {
         e.preventDefault()
 

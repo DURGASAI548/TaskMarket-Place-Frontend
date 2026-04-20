@@ -1,6 +1,7 @@
 import React from 'react'
 
 const TablePagination = ({table}) => {
+    console.log(table)
     return (
         <div className="row gy-2">
             <div className="col-sm-12 col-md-5 p-0">
