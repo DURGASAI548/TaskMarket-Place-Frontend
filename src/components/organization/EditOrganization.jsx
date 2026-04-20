@@ -58,7 +58,7 @@ const EditOrganizations = () => {
 
   const orgNameRef = useRef(null)
   const descriptionRef = useRef(null)
-
+  const [adminId, setadminId] = useState(null)
   useEffect(() => {
     const fetchAll = async () => {
       try {
@@ -77,53 +77,46 @@ const EditOrganizations = () => {
           ),
         ])
 
-        const usersData = usersRes.data.data.map((ele) => ({
+        let usersData = usersRes.data.data.map((ele) => ({
           value: ele._id,
           label: ele.name,
           img: ele.profileURL,
         }))
-        setCurrencyOptionsData_1(usersData)
 
         const org = orgRes.data.data
 
-        const adminId =
+        // ✅ compute locally
+        const adminIdLocal =
           typeof org.orgAdminUser === 'object' && org.orgAdminUser !== null
             ? org.orgAdminUser._id
             : org.orgAdminUser || null
 
-        // If previous admin isn't in the users list, inject them
-        // if (adminId && !usersData.find((u) => u.value === adminId)) {
-        //   const adminObj = org.orgAdminUser
-        //   usersData.unshift({
-        //     value: adminId,
-        //     label:
-        //       typeof adminObj === 'object'
-        //         ? adminObj.name || adminObj.email || 'Unknown User'
-        //         : 'Previous Admin',
-        //     img:
-        //       typeof adminObj === 'object' ? adminObj.profileURL || '' : '',
-        //   })
-        //   setCurrencyOptionsData_1([...usersData])
-        // }
-        
-        if (adminId && !usersData.find((u) => u.value === adminId)) {
+        // ✅ update state AFTER using local value
+        setadminId(adminIdLocal)
+
+        // ✅ inject previous admin if missing
+        if (adminIdLocal && !usersData.find((u) => u.value === adminIdLocal)) {
           const adminObj = org.orgAdminUser
-          console.log(adminObj)
-          console.log(org)
+
           usersData.unshift({
-            value: adminId,
-            label: adminObj.name || 'Previous Admin',
-             
-            img: adminObj.profileURL || '' ,
+            value: adminIdLocal,
+            label:
+              typeof adminObj === 'object'
+                ? adminObj.name || adminObj.email || 'Unknown User'
+                : 'Previous Admin',
+            img:
+              typeof adminObj === 'object' ? adminObj.profileURL || '' : '',
           })
-          setCurrencyOptionsData_1([...usersData])
         }
+
+        setCurrencyOptionsData_1(usersData)
 
         setFormData({
           orgName: org.orgName || '',
-          orgAdmin: adminId,
+          orgAdmin: adminIdLocal, // ✅ use local value
           description: org.orgDescription || '',
         })
+
       } catch (err) {
         console.error('Failed to load data:', err)
         setFetchError('Failed to load organization data. Please try again.')
@@ -282,13 +275,12 @@ const EditOrganizations = () => {
                   <input
                     ref={orgNameRef}
                     type="text"
-                    className={`form-control mb-0 ${
-                      touched.orgName
+                    className={`form-control mb-0 ${touched.orgName
                         ? errors.orgName
                           ? 'is-invalid'
                           : ''
                         : ''
-                    }`}
+                      }`}
                     placeholder="Org Name"
                     value={formData.orgName}
                     onChange={(e) => handleChange('orgName', e.target.value)}
@@ -324,11 +316,12 @@ const EditOrganizations = () => {
                     </div>
                   ) : (
                     <>
+                      {console.log(adminId)}
                       <div className="position-relative">
                         <SelectDropdown
                           options={currencyOptionsData_1}
                           selectedOption={selectedAdminOption}
-                          defaultSelect=""
+                          defaultSelect={adminId}
                           onSelectOption={handleAdminSelect}
                         />
                         {selectedAdminOption && (
@@ -361,13 +354,12 @@ const EditOrganizations = () => {
                   <textarea
                     ref={descriptionRef}
                     rows={5}
-                    className={`form-control ${
-                      touched.description
+                    className={`form-control ${touched.description
                         ? errors.description
                           ? 'is-invalid'
                           : ''
                         : ''
-                    }`}
+                      }`}
                     placeholder="Enter organization description (min 10 characters)"
                     value={formData.description}
                     onChange={(e) => handleChange('description', e.target.value)}
@@ -382,9 +374,8 @@ const EditOrganizations = () => {
                   )}
                   <div className="d-flex justify-content-end mt-1">
                     <small
-                      className={`${
-                        descCharCount > 450 ? 'text-warning' : 'text-muted'
-                      } ${descCharCount >= 500 ? 'text-danger' : ''}`}
+                      className={`${descCharCount > 450 ? 'text-warning' : 'text-muted'
+                        } ${descCharCount >= 500 ? 'text-danger' : ''}`}
                     >
                       {descCharCount}/500
                     </small>

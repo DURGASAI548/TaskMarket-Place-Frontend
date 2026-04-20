@@ -117,11 +117,12 @@ const InputRow = ({ label, icon: Icon, fieldKey, type = 'text', inputRef, placeh
     </div>
 )
 
-const DropdownField = ({ label, options, loading, loadingText, selectedValue, touched, error, fieldKey, onSelect, hint }) => (
+const DropdownField = ({ label, options, loading, loadingText, selectedValue, touched, error, fieldKey, onSelect, hint, form }) => (
     <div className="mb-4">
         <label className="form-label fw-semibold">
             {label} <span className="text-danger">*</span>
         </label>
+        {console.log(label)}
         {loading ? (
             <div className="d-flex align-items-center py-2">
                 <RotatingLines visible height="22" width="22" color="blue" strokeWidth="5" animationDuration="0.75" />
@@ -132,7 +133,7 @@ const DropdownField = ({ label, options, loading, loadingText, selectedValue, to
                 <SelectDropdown
                     options={options}
                     selectedOption={options.find((o) => o.value === selectedValue) || null}
-                    defaultSelect=""
+                    defaultSelect={label == "Organization" ? form.organization : form.branch}
                     onSelectOption={(option) => onSelect(fieldKey, option)}
                 />
                 {hint && !error && options.length === 0 && <div className="text-muted fs-11 mt-1">{hint}</div>}
@@ -232,17 +233,23 @@ const EditUser = () => {
                 console.log(u.org , typeof u.org)
                 const orgId = typeof u.org === 'object' ? u.org?._id : u.org || null
                 const branchId = typeof u.branch === 'object' ? u.branch?._id : u.branch || null
-
+                console.log(orgId,branchId)
                 // Pre-fill form
                 setForm({
-                    name:         u.name         || '',
+                    name:         u.name          || '',
                     rollNumber:   u.rollNo        || '',
                     email:        u.email         || '',
-                    organization: orgId,
+                    organization: orgId, 
                     branch:       branchId,
                     username:     u.displayName   || '',
                     phone:        String(u.phoneNo || ''),
                 })
+                // handleChange("organization",{
+                //     value:u.org._id,
+                //     label:u.org.orgName,
+                //     img:null
+                // })
+
 
                 // Set avatar preview if user has a profile image
                 const profileURL = u.profile
@@ -266,6 +273,7 @@ const EditUser = () => {
 
         loadAll()
     }, [userId, API])
+
 
     // ── Filter branches when org changes ─────────────────
     const currentOrgId = form.organization
@@ -303,6 +311,7 @@ const EditUser = () => {
     }
 
     const handleDropdown = (field, option) => {
+        console.log(field,option)
         const val = option?.value || null
         handleChange(field, val)
         setTouched((prev) => ({ ...prev, [field]: true }))
@@ -524,14 +533,14 @@ const EditUser = () => {
                             <DropdownField label="Organization"
                                 options={organizationOptions} loading={loadingDropdowns} loadingText="Loading data..."
                                 selectedValue={form.organization} touched={touched.organization} error={errors.organization}
-                                fieldKey="organization" onSelect={handleDropdown} />
+                                fieldKey="organization" onSelect={handleDropdown} form={form}/>
                         </div>
                         <div className="col-md-6">
                             <DropdownField label="Branch"
                                 options={branchOptions} loading={loadingDropdowns} loadingText="Loading data..."
                                 selectedValue={form.branch} touched={touched.branch} error={errors.branch}
                                 fieldKey="branch" hint="Select an organization first to see available branches"
-                                onSelect={handleDropdown} />
+                                onSelect={handleDropdown} form={form}/>
                         </div>
                     </div>
 

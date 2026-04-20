@@ -80,6 +80,8 @@ const EditBranch = () => {
   const descriptionRef = useRef(null)
 
   // ── Fetch All Data in Parallel ────────────────────────
+  const [adminId, setadminId] = useState(null)
+  const [orgId , setorgId] = useState(null)
   useEffect(() => {
     const fetchAll = async () => {
       try {
@@ -103,64 +105,71 @@ const EditBranch = () => {
           ),
         ])
 
-        const usersData = usersRes.data.data.map((ele) => ({
+        // 🔧 helper to extract ID safely
+        const getId = (val) =>
+          typeof val === 'object' && val !== null ? val._id : val || null
+
+        // ✅ Users list
+        let usersData = usersRes.data.data.map((ele) => ({
           value: ele._id,
           label: ele.name,
-          img: ele.profileURL,
         }))
 
-        const orgsData = orgsRes.data.data.map((ele) => ({
+        // ✅ Organizations list
+        let orgsData = orgsRes.data.data.map((ele) => ({
           value: ele._id,
           label: ele.orgName,
-          img: '',
         }))
 
         const branch = branchRes.data.data
+        console.log("Branch Data:", branch)
 
-        const adminId =
-          typeof branch.branchAdmin === 'object' && branch.branchAdmin !== null
-            ? branch.branchAdmin._id
-            : branch.branchAdmin || null
+        // ✅ compute locally (IMPORTANT FIX)
+        const adminIdLocal = getId(branch.branchAdminUser)
+        const orgIdLocal = getId(branch.org)
 
-        const orgId =
-          typeof branch.org === 'object' && branch.org !== null
-            ? branch.org._id
-            : branch.org || null
+        // ✅ set state AFTER computing
+        setadminId(adminIdLocal)
+        setorgId(orgIdLocal)
 
-        if (adminId && !usersData.find((u) => u.value === adminId)) {
-          const adminObj = branch.branchAdmin
+        // 🔥 Inject missing admin into dropdown
+        if (adminIdLocal && !usersData.find((u) => u.value === adminIdLocal)) {
+          const adminObj = branch.branchAdminUser
+
           usersData.unshift({
-            value: adminId,
+            value: adminIdLocal,
             label:
               typeof adminObj === 'object'
                 ? adminObj.name || adminObj.email || 'Unknown User'
-                : branch.adminName || 'Previous Admin',
-            img:
-              typeof adminObj === 'object' ? adminObj.profileURL || '' : '',
+                : 'Previous Admin',
           })
         }
 
-        if (orgId && !orgsData.find((o) => o.value === orgId)) {
+        // 🔥 Inject missing org into dropdown
+        if (orgIdLocal && !orgsData.find((o) => o.value === orgIdLocal)) {
           const orgObj = branch.org
+
           orgsData.unshift({
-            value: orgId,
+            value: orgIdLocal,
             label:
               typeof orgObj === 'object'
                 ? orgObj.orgName || 'Unknown Organization'
-                : branch.orgName || 'Previous Organization',
-            img: '',
+                : 'Previous Organization',
           })
         }
 
+        // ✅ set dropdown data
         setUserOptions(usersData)
         setOrganizationOptions(orgsData)
 
+        // ✅ set form data
         setFormData({
           branchName: branch.branchName || '',
-          organization: orgId,
-          branchAdmin: adminId,
+          organization: orgIdLocal,
+          branchAdmin: adminIdLocal,
           description: branch.branchDescription || '',
         })
+
       } catch (err) {
         console.error('Failed to load data:', err)
         setFetchError('Failed to load branch data. Please try again.')
@@ -334,13 +343,12 @@ const EditBranch = () => {
                   <input
                     ref={branchNameRef}
                     type="text"
-                    className={`form-control mb-0 ${
-                      touched.branchName
-                        ? errors.branchName
-                          ? 'is-invalid'
-                          : ''
+                    className={`form-control mb-0 ${touched.branchName
+                      ? errors.branchName
+                        ? 'is-invalid'
                         : ''
-                    }`}
+                      : ''
+                      }`}
                     placeholder="Branch Name"
                     value={formData.branchName}
                     onChange={(e) => handleChange('branchName', e.target.value)}
@@ -383,7 +391,7 @@ const EditBranch = () => {
                             (opt) => opt.value === formData.organization
                           ) || null
                         }
-                        defaultSelect=""
+                        defaultSelect={orgId}
                         onSelectOption={(option) =>
                           handleDropdownSelect('organization', option)
                         }
@@ -428,7 +436,7 @@ const EditBranch = () => {
                         <SelectDropdown
                           options={userOptions}
                           selectedOption={selectedAdminOption}
-                          defaultSelect=""
+                          defaultSelect={adminId}
                           onSelectOption={handleAdminSelect}
                         />
                         {selectedAdminOption && (
@@ -462,13 +470,12 @@ const EditBranch = () => {
                   <textarea
                     ref={descriptionRef}
                     rows={5}
-                    className={`form-control ${
-                      touched.description
-                        ? errors.description
-                          ? 'is-invalid'
-                          : ''
+                    className={`form-control ${touched.description
+                      ? errors.description
+                        ? 'is-invalid'
                         : ''
-                    }`}
+                      : ''
+                      }`}
                     placeholder="Enter branch description (min 10 characters)"
                     value={formData.description}
                     onChange={(e) => handleChange('description', e.target.value)}
@@ -483,9 +490,8 @@ const EditBranch = () => {
                   )}
                   <div className="d-flex justify-content-end mt-1">
                     <small
-                      className={`${
-                        descCharCount > 450 ? 'text-warning' : 'text-muted'
-                      } ${descCharCount >= 500 ? 'text-danger' : ''}`}
+                      className={`${descCharCount > 450 ? 'text-warning' : 'text-muted'
+                        } ${descCharCount >= 500 ? 'text-danger' : ''}`}
                     >
                       {descCharCount}/500
                     </small>
