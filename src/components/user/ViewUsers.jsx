@@ -36,16 +36,11 @@ const SkeletonRow = () => (
     </tr>
 )
 
-// ══════════════════════════════════════════════════════════
-// SELF-CONTAINED PAGINATION COMPONENT
-// Styled to match the existing card-footer / Bootstrap look
-// ══════════════════════════════════════════════════════════
+
 const UserPagination = ({ currentPage, totalPages, totalItems, from, to, onPageChange }) => {
     if (totalPages <= 1) return null
 
-    // Build visible page numbers — always show first, last,
-    // current, and up to 1 neighbour on each side.
-    // Gaps get an ellipsis.
+
     const buildPages = () => {
         const pages = []
         const delta = 1 // neighbours on each side of current
@@ -59,13 +54,11 @@ const UserPagination = ({ currentPage, totalPages, totalItems, from, to, onPageC
             range.push(i)
         }
 
-        // Always include first page
         if (range[0] > 2) pages.push(1, '...')
         else if (range[0] === 2) pages.push(1)
 
         range.forEach((p) => pages.push(p))
 
-        // Always include last page
         if (range[range.length - 1] < totalPages - 1) pages.push('...', totalPages)
         else if (range[range.length - 1] === totalPages - 1) pages.push(totalPages)
 
@@ -79,14 +72,11 @@ const UserPagination = ({ currentPage, totalPages, totalItems, from, to, onPageC
     return (
         <div className="d-flex flex-column flex-sm-row align-items-center justify-content-between gap-3 w-100">
 
-            {/* Entry info — matches dataTables_info style */}
             <span className="fs-12 text-muted">
                 Showing <strong>{from}</strong>–<strong>{to}</strong> of <strong>{totalItems}</strong> users
             </span>
 
-            {/* Page buttons */}
             <ul className="pagination pagination-sm mb-0 flex-wrap justify-content-center">
-                {/* Previous */}
                 <li className={`page-item ${isFirst ? 'disabled' : ''}`}>
                     <button
                         className="page-link d-flex align-items-center gap-1"
@@ -98,7 +88,6 @@ const UserPagination = ({ currentPage, totalPages, totalItems, from, to, onPageC
                     </button>
                 </li>
 
-                {/* Page numbers */}
                 {pages.map((p, idx) =>
                     p === '...' ? (
                         <li key={`ellipsis-${idx}`} className="page-item disabled">
@@ -117,7 +106,6 @@ const UserPagination = ({ currentPage, totalPages, totalItems, from, to, onPageC
                     )
                 )}
 
-                {/* Next */}
                 <li className={`page-item ${isLast ? 'disabled' : ''}`}>
                     <button
                         className="page-link d-flex align-items-center gap-1"
@@ -134,7 +122,6 @@ const UserPagination = ({ currentPage, totalPages, totalItems, from, to, onPageC
     )
 }
 
-// ── Helpers ────────────────────────────────────────────────
 const hasValidImage = (url) => url && url !== 'null' && url !== 'undefined' && url.trim() !== ''
 
 const getUserTypeColor = (type) => {
@@ -150,10 +137,6 @@ const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// ══════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ══════════════════════════════════════════════════════════
-
 const ViewUsers = ({ title = 'Users' }) => {
     const { refreshKey, isRemoved, isExpanded, handleRefresh, handleExpand, handleDelete: handleCardDelete } = useCardTitleActions()
 
@@ -167,12 +150,10 @@ const ViewUsers = ({ title = 'Users' }) => {
     const [searchQuery, setSearchQuery] = useState('')
     const [filterType,  setFilterType]  = useState('all')
 
-    // ── Pagination state ──────────────────────────────────
     const [currentPage, setCurrentPage] = useState(1)
 
     const dropdownRef = useRef(null)
 
-    // ── Fetch ─────────────────────────────────────────────
     const fetchUsers = async () => {
         try {
             setLoading(true)
@@ -193,10 +174,8 @@ const ViewUsers = ({ title = 'Users' }) => {
     useEffect(() => { fetchUsers() }, [])
     useEffect(() => { if (refreshKey) fetchUsers() }, [refreshKey])
 
-    // Reset to page 1 whenever search/filter changes
     useEffect(() => { setCurrentPage(1) }, [searchQuery, filterType])
 
-    // Close actions dropdown on outside click
     useEffect(() => {
         if (!activeDropdown) return
         const close = (e) => {
@@ -207,7 +186,6 @@ const ViewUsers = ({ title = 'Users' }) => {
         return () => document.removeEventListener('mousedown', close)
     }, [activeDropdown])
 
-    // ── Filtered list ─────────────────────────────────────
     const filteredUsers = useMemo(() => {
         if (!users) return null
         if (!searchQuery.trim()) return users
@@ -232,18 +210,15 @@ const ViewUsers = ({ title = 'Users' }) => {
         })
     }, [users, searchQuery, filterType])
 
-    // ── Pagination calculations ───────────────────────────
     const totalItems = filteredUsers?.length ?? 0
     const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
 
-    // Clamp page if filter shrinks the list
     const safePage = Math.min(currentPage, totalPages)
 
     const from       = totalItems === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
     const to         = Math.min(safePage * PAGE_SIZE, totalItems)
     const pageSlice  = filteredUsers?.slice(from - 1, to) ?? []
 
-    // ── Delete ────────────────────────────────────────────
     const handleDeleteUser = async (id) => {
         if (deletingId) return
         try {
@@ -287,7 +262,6 @@ const ViewUsers = ({ title = 'Users' }) => {
             <div className={`card stretch stretch-full ${isExpanded ? 'card-expand' : ''} ${refreshKey ? 'card-loading' : ''}`}>
                 {/* <CardHeader title={title} refresh={handleRefresh} remove={handleCardDelete} expanded={handleExpand} /> */}
 
-                {/* ── Search & Filter ─────────────────────── */}
                 {!loading && !fetchError && users && users.length > 0 && (
                     <div className="card-header py-3 border-top">
                         <div className="row align-items-center g-2 w-100">
@@ -319,7 +293,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                                 </div>
                             </div>
 
-                            {/* Filter pills */}
                             <div className="col-lg-5 col-md-4 col-5 d-flex gap-1 flex-wrap">
                                 {[
                                     { key: 'all',    label: 'All' },
@@ -338,7 +311,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                                 ))}
                             </div>
 
-                            {/* Add user */}
                             <div className="col-lg-2 col-md-2 text-end col-4">
                                 <Link href="/add-users" className="btn btn-sm btn-primary">
                                     <FiPlus size={14} className="me-1" />Add User
@@ -346,7 +318,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                             </div>
                         </div>
 
-                        {/* Result count */}
                         {searchQuery.trim() && filteredUsers && (
                             <div className="mt-2">
                                 <span className="fs-11 text-muted">
@@ -361,10 +332,8 @@ const ViewUsers = ({ title = 'Users' }) => {
                     </div>
                 )}
 
-                {/* ── Table ───────────────────────────────── */}
                 <div className="card-body custom-card-action p-0">
 
-                    {/* Skeleton */}
                     {loading && (
                         <div className="table-responsive">
                             <table className="table table-hover mb-0">
@@ -374,7 +343,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                         </div>
                     )}
 
-                    {/* Error */}
                     {!loading && fetchError && (
                         <div className="d-flex flex-column align-items-center justify-content-center py-5">
                             <div className="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger bg-opacity-10 mb-3" style={{ width: 56, height: 56 }}>
@@ -388,7 +356,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                         </div>
                     )}
 
-                    {/* Empty */}
                     {!loading && !fetchError && (!users || users.length === 0) && (
                         <div className="d-flex flex-column align-items-center justify-content-center py-5">
                             <div className="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary bg-opacity-10 mb-3" style={{ width: 56, height: 56 }}>
@@ -402,7 +369,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                         </div>
                     )}
 
-                    {/* No search results */}
                     {!loading && !fetchError && users && users.length > 0 && filteredUsers && filteredUsers.length === 0 && (
                         <div className="d-flex flex-column align-items-center justify-content-center py-5">
                             <FiSearch size={28} className="text-muted mb-3" />
@@ -415,7 +381,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                         </div>
                     )}
 
-                    {/* Data table — shows only the current page slice */}
                     {!loading && !fetchError && pageSlice.length > 0 && (
                         <div className="table-responsive">
                             <table className="table table-hover mb-0">
@@ -428,7 +393,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                                             <tr key={user._id} className="chat-single-item"
                                                 style={{ opacity: isAnyDeleting && !isThisDeleting ? 0.5 : 1, transition: 'opacity 0.2s ease' }}>
 
-                                                {/* User */}
                                                 <td>
                                                     <div className="d-flex align-items-center gap-3">
                                                         {hasValidImage(user.profileURL) ? (
@@ -468,7 +432,6 @@ const ViewUsers = ({ title = 'Users' }) => {
 
                                                 <td><span className="fs-12 text-muted">{formatDate(user.createdAt)}</span></td>
 
-                                                {/* Actions */}
                                                 <td className="text-end">
                                                     {isThisDeleting ? (
                                                         <div className="d-flex justify-content-center align-items-center">
@@ -515,7 +478,6 @@ const ViewUsers = ({ title = 'Users' }) => {
                     )}
                 </div>
 
-                {/* ── Footer: pagination ───────────────────── */}
                 {!loading && !fetchError && users && users.length > 0 && pageSlice.length > 0 && (
                     <div className="card-footer py-3">
                         <UserPagination

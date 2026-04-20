@@ -7,9 +7,6 @@ import axios from 'axios'
 import SelectDropdown from '@/components/shared/SelectDropdown'
 import { FiCamera, FiSave, FiX, FiUser, FiTag, FiMail, FiPhone, FiUsers, FiAlertCircle, FiRefreshCw } from 'react-icons/fi'
 
-// ══════════════════════════════════════════════════════════
-// VALIDATION RULES
-// ══════════════════════════════════════════════════════════
 
 const validateName = (value) => {
     const trimmed = (value || '').trim()
@@ -64,7 +61,6 @@ const validateAvatar = (file) => {
     return ''
 }
 
-// ── Validators map ────────────────────────────────────────
 const singleValidators = {
     name: validateName,
     rollNumber: validateRollNumber,
@@ -89,10 +85,7 @@ const keys = Object.keys(initialForm)
 const createTouched = (val = false) => keys.reduce((a, k) => ({ ...a, [k]: val }), {})
 const createErrors  = ()            => keys.reduce((a, k) => ({ ...a, [k]: '' }), {})
 
-// ══════════════════════════════════════════════════════════
-// REUSABLE SUB-COMPONENTS (defined outside to prevent
-// remounting on every render — avoids focus-loss bug)
-// ══════════════════════════════════════════════════════════
+
 
 const InputRow = ({ label, icon: Icon, fieldKey, type = 'text', inputRef, placeholder, maxLength, value, touched, error, onChange, onBlur, disabled }) => (
     <div className="mb-4">
@@ -155,44 +148,34 @@ const SectionDivider = ({ icon: Icon, title, subtitle }) => (
     </div>
 )
 
-// ══════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ══════════════════════════════════════════════════════════
 
 const EditUser = () => {
     const params = useParams()
     const router = useRouter()
-    const userId = params?.id   // pulled from /edit-user/[id]
+    const userId = params?.id  
 
     const API = process.env.NEXT_PUBLIC_API_URL
 
-    // ── Page-level loading / error ────────────────────────
     const [pageLoading, setPageLoading] = useState(true)
     const [pageError,   setPageError]   = useState('')
 
-    // ── Existing profile URL (to show current avatar) ─────
     const [existingProfileURL, setExistingProfileURL] = useState(null)
 
-    // ── Form state ────────────────────────────────────────
     const [form,    setForm]    = useState({ ...initialForm })
     const [errors,  setErrors]  = useState(createErrors())
     const [touched, setTouched] = useState(createTouched(false))
 
-    // ── Avatar ────────────────────────────────────────────
     const [avatarFile,    setAvatarFile]    = useState(null)   // new file selected
     const [avatarPreview, setAvatarPreview] = useState('/images/avatar/1.png')
     const [avatarError,   setAvatarError]   = useState('')
 
-    // ── Dropdowns ─────────────────────────────────────────
     const [orgWithBranches,    setOrgWithBranches]    = useState([])
     const [organizationOptions, setOrganizationOptions] = useState([])
     const [branchOptions,       setBranchOptions]       = useState([])
     const [loadingDropdowns,    setLoadingDropdowns]    = useState(true)
 
-    // ── Submit ────────────────────────────────────────────
     const [submitting, setSubmitting] = useState(false)
 
-    // ── Refs ──────────────────────────────────────────────
     const nameRef     = useRef(null)
     const rollRef     = useRef(null)
     const emailRef    = useRef(null)
@@ -200,10 +183,7 @@ const EditUser = () => {
     const phoneRef    = useRef(null)
     const avatarInputRef = useRef(null)
 
-    // ══════════════════════════════════════════════════════
-    // FETCH: orgs+branches AND user data in parallel
-    // so the dropdown options are ready when the form fills
-    // ══════════════════════════════════════════════════════
+
 
     useEffect(() => {
         if (!userId) return
@@ -218,23 +198,19 @@ const EditUser = () => {
                     axios.get(`${API}/api/get-user-by-id/${userId}`, { withCredentials: true }),
                 ])
 
-                // ── Build org dropdown ──────────────────
                 const orgData = orgRes.data.data || []
                 setOrgWithBranches(orgData)
                 setOrganizationOptions(
                     orgData.map((org) => ({ value: org.organizationId, label: org.organizationName, img: '' }))
                 )
 
-                // ── Extract user data ───────────────────
                 const u = userRes.data.data || userRes.data.user || userRes.data
                 console.log("user",u)
 
-                // Org/branch IDs — API might return IDs or populated objects
                 console.log(u.org , typeof u.org)
                 const orgId = typeof u.org === 'object' ? u.org?._id : u.org || null
                 const branchId = typeof u.branch === 'object' ? u.branch?._id : u.branch || null
                 console.log(orgId,branchId)
-                // Pre-fill form
                 setForm({
                     name:         u.name          || '',
                     rollNumber:   u.rollNo        || '',
@@ -251,7 +227,6 @@ const EditUser = () => {
                 // })
 
 
-                // Set avatar preview if user has a profile image
                 const profileURL = u.profile
                 console.log(profileURL)
                 const isValid = profileURL && profileURL !== 'null' && profileURL !== 'undefined' && profileURL.trim() !== ''
@@ -275,7 +250,6 @@ const EditUser = () => {
     }, [userId, API])
 
 
-    // ── Filter branches when org changes ─────────────────
     const currentOrgId = form.organization
 
     useEffect(() => {
@@ -289,9 +263,7 @@ const EditUser = () => {
         }
     }, [currentOrgId, orgWithBranches])
 
-    // ══════════════════════════════════════════════════════
-    // FIELD HANDLERS
-    // ══════════════════════════════════════════════════════
+
 
     const handleChange = (field, value) => {
         setForm((prev) => ({ ...prev, [field]: value }))
@@ -318,7 +290,6 @@ const EditUser = () => {
         setErrors((prev) => ({ ...prev, [field]: singleValidators[field](val) }))
     }
 
-    // ── Avatar handlers ───────────────────────────────────
     const handleAvatarChange = (e) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -341,9 +312,7 @@ const EditUser = () => {
         if (avatarInputRef.current) avatarInputRef.current.value = ''
     }
 
-    // ══════════════════════════════════════════════════════
-    // SUBMIT → PUT /api/edit-user/:userId
-    // ══════════════════════════════════════════════════════
+
 
     const handleSubmit = async () => {
         // Mark all touched and validate
@@ -396,9 +365,6 @@ const EditUser = () => {
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    // LOADING / ERROR STATES
-    // ══════════════════════════════════════════════════════
 
     if (pageLoading) {
         return (
@@ -432,15 +398,12 @@ const EditUser = () => {
         )
     }
 
-    // ══════════════════════════════════════════════════════
-    // FORM RENDER
-    // ══════════════════════════════════════════════════════
+
 
     return (
         <div className="col-xxl-8 col-xl-9 col-lg-10 col-12">
             <div className="card stretch stretch-full">
 
-                {/* ── Card Header ─────────────────────────── */}
                 <div className="card-header d-flex align-items-center justify-content-between">
                     <div>
                         <h5 className="card-title mb-0">Edit User</h5>
@@ -448,10 +411,8 @@ const EditUser = () => {
                     </div>
                 </div>
 
-                {/* ── Card Body ────────────────────────────── */}
                 <div className="card-body">
 
-                    {/* ─── Avatar ────────────────────────── */}
                     <SectionDivider icon={FiCamera} title="Profile Photo" subtitle="Upload a new profile picture (optional)" />
 
                     <div className="mb-4">
@@ -467,7 +428,6 @@ const EditUser = () => {
                                     <input ref={avatarInputRef} type="file" accept="image/png,image/jpg,image/jpeg"
                                         id="avatar-input" onChange={handleAvatarChange} disabled={submitting} hidden />
                                 </label>
-                                {/* Show remove only if user picked a NEW file */}
                                 {avatarFile && (
                                     <button className="btn btn-sm btn-danger position-absolute rounded-circle p-0 d-flex align-items-center justify-content-center"
                                         style={{ width: 22, height: 22, top: -8, right: -8, zIndex: 2 }}
@@ -490,7 +450,6 @@ const EditUser = () => {
 
                     <hr className="my-4" />
 
-                    {/* ─── Personal info ─────────────────── */}
                     <SectionDivider icon={FiUser} title="Personal Information" subtitle="Basic details about the user" />
 
                     <div className="row">
@@ -525,7 +484,6 @@ const EditUser = () => {
 
                     <hr className="my-4" />
 
-                    {/* ─── Org & Branch ──────────────────── */}
                     <SectionDivider icon={FiUsers} title="Organization & Branch" subtitle="Assign the user to an organization and branch" />
 
                     <div className="row">
@@ -546,7 +504,6 @@ const EditUser = () => {
 
                     <hr className="my-4" />
 
-                    {/* ─── Account details ───────────────── */}
                     <SectionDivider icon={FiTag} title="Account Details" subtitle="Display name for the user's profile" />
 
                     <div className="row">
@@ -559,7 +516,6 @@ const EditUser = () => {
                     </div>
                 </div>
 
-                {/* ── Card Footer ──────────────────────────── */}
                 <div className="card-footer d-flex align-items-center justify-content-between bg-transparent">
                     <span className="fs-11 text-muted">
                         <span className="text-danger">*</span> indicates required fields

@@ -7,7 +7,6 @@ import SelectDropdown from '@/components/shared/SelectDropdown'
 import { FiSave } from 'react-icons/fi'
 import axios from 'axios'
 
-// ── Validation Rules ──────────────────────────────────────
 const validateBranchName = (value) => {
   const trimmed = value.trim()
   if (!trimmed) return 'Branch name is required'
@@ -31,20 +30,17 @@ const validateDescription = (value) => {
   return ''
 }
 
-// branchAdmin removed — it's optional
 const validators = {
   branchName: validateBranchName,
   organization: validateOrganization,
   description: validateDescription,
 }
 
-// ── Component ─────────────────────────────────────────────
 const EditBranch = () => {
   const params = useParams()
   const router = useRouter()
   const id = params.id
 
-  // ── Form State ────────────────────────────────────────
   const [formData, setFormData] = useState({
     branchName: '',
     organization: null,
@@ -64,22 +60,18 @@ const EditBranch = () => {
     description: false,
   })
 
-  // ── Dropdown Data ─────────────────────────────────────
   const [organizationOptions, setOrganizationOptions] = useState([])
   const [userOptions, setUserOptions] = useState([])
 
-  // ── UI State ──────────────────────────────────────────
   const [submittingLoading, setSubmittingLoading] = useState(false)
   const [loadingOrgs, setLoadingOrgs] = useState(false)
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [loadingBranchData, setLoadingBranchData] = useState(true)
   const [fetchError, setFetchError] = useState('')
 
-  // ── Refs ──────────────────────────────────────────────
   const branchNameRef = useRef(null)
   const descriptionRef = useRef(null)
 
-  // ── Fetch All Data in Parallel ────────────────────────
   const [adminId, setadminId] = useState(null)
   const [orgId , setorgId] = useState(null)
   useEffect(() => {
@@ -105,17 +97,14 @@ const EditBranch = () => {
           ),
         ])
 
-        // 🔧 helper to extract ID safely
         const getId = (val) =>
           typeof val === 'object' && val !== null ? val._id : val || null
 
-        // ✅ Users list
         let usersData = usersRes.data.data.map((ele) => ({
           value: ele._id,
           label: ele.name,
         }))
 
-        // ✅ Organizations list
         let orgsData = orgsRes.data.data.map((ele) => ({
           value: ele._id,
           label: ele.orgName,
@@ -124,15 +113,12 @@ const EditBranch = () => {
         const branch = branchRes.data.data
         console.log("Branch Data:", branch)
 
-        // ✅ compute locally (IMPORTANT FIX)
         const adminIdLocal = getId(branch.branchAdminUser)
         const orgIdLocal = getId(branch.org)
 
-        // ✅ set state AFTER computing
         setadminId(adminIdLocal)
         setorgId(orgIdLocal)
 
-        // 🔥 Inject missing admin into dropdown
         if (adminIdLocal && !usersData.find((u) => u.value === adminIdLocal)) {
           const adminObj = branch.branchAdminUser
 
@@ -145,7 +131,6 @@ const EditBranch = () => {
           })
         }
 
-        // 🔥 Inject missing org into dropdown
         if (orgIdLocal && !orgsData.find((o) => o.value === orgIdLocal)) {
           const orgObj = branch.org
 
@@ -158,11 +143,9 @@ const EditBranch = () => {
           })
         }
 
-        // ✅ set dropdown data
         setUserOptions(usersData)
         setOrganizationOptions(orgsData)
 
-        // ✅ set form data
         setFormData({
           branchName: branch.branchName || '',
           organization: orgIdLocal,
@@ -184,7 +167,6 @@ const EditBranch = () => {
     if (id) fetchAll()
   }, [id])
 
-  // ── Handlers ──────────────────────────────────────────
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
 
@@ -220,7 +202,6 @@ const EditBranch = () => {
     setFormData((prev) => ({ ...prev, branchAdmin: null }))
   }
 
-  // ── Submit ────────────────────────────────────────────
   const handleSubmit = async () => {
     setTouched({
       branchName: true,
@@ -235,7 +216,6 @@ const EditBranch = () => {
     }
     setErrors(newErrors)
 
-    // Only check required fields — branchAdmin is skipped
     if (newErrors.branchName) {
       branchNameRef.current?.focus()
       return
@@ -246,7 +226,6 @@ const EditBranch = () => {
       return
     }
 
-    // branchAdmin is optional — send _id if selected, null if not
     const payload = {
       branchName: formData.branchName.trim(),
       org: formData.organization,
@@ -265,7 +244,6 @@ const EditBranch = () => {
 
       topTost?.('success', 'Branch updated successfully!')
 
-      // Reset touched/errors but KEEP the updated data
       setTouched({ branchName: false, organization: false, description: false })
       setErrors({ branchName: '', organization: '', description: '' })
     } catch (err) {
@@ -285,7 +263,6 @@ const EditBranch = () => {
     (opt) => opt.value === formData.branchAdmin
   ) || null
 
-  // ── Loading State ─────────────────────────────────────
   if (loadingBranchData) {
     return (
       <div className="col-xl-8">
@@ -307,7 +284,6 @@ const EditBranch = () => {
     )
   }
 
-  // ── Error State ───────────────────────────────────────
   if (fetchError) {
     return (
       <div className="col-xl-8">
@@ -335,7 +311,6 @@ const EditBranch = () => {
 
             <div>
               <div className="row">
-                {/* ── Branch Name ───────────────────────── */}
                 <div className="col-lg-6 mb-4">
                   <label className="form-label">
                     Branch Name <span className="text-danger">*</span>
@@ -363,7 +338,6 @@ const EditBranch = () => {
                   )}
                 </div>
 
-                {/* ── Organization ──────────────────────── */}
                 <div className="col-lg-6 mb-4">
                   <label className="form-label">
                     Organization <span className="text-danger">*</span>
@@ -410,7 +384,6 @@ const EditBranch = () => {
               </div>
 
               <div className="row">
-                {/* ── Branch Admin (OPTIONAL) ──────────── */}
                 <div className="col-lg-6 mb-4">
                   <label className="form-label">
                     Branch Admin
@@ -460,7 +433,6 @@ const EditBranch = () => {
               </div>
             </div>
 
-            {/* ── Branch Description ──────────────────── */}
             <div>
               <label className="form-label">
                 Branch Description <span className="text-danger">*</span>
@@ -500,7 +472,6 @@ const EditBranch = () => {
               </div>
             </div>
 
-            {/* ── Submit Button ───────────────────────── */}
             <div className="col-12 d-flex justify-content-end mt-4">
               <button
                 className="btn btn-primary"

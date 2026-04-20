@@ -222,7 +222,6 @@ const AddBranch = () => {
 
             <div>
               <div className="row">
-                {/* ── Branch Name ───────────────────────── */}
                 <div className="col-lg-6 mb-4">
                   <label className="form-label">
                     Branch Name <span className="text-danger">*</span>
@@ -251,7 +250,6 @@ const AddBranch = () => {
                   )}
                 </div>
 
-                {/* ── Organization ──────────────────────── */}
                 <div className="col-lg-6 mb-4">
                   <label className="form-label">
                     Organization <span className="text-danger">*</span>
@@ -298,7 +296,6 @@ const AddBranch = () => {
               </div>
 
               <div className="row">
-                {/* ── Branch Admin (OPTIONAL) ──────────── */}
                 {/* <div className="col-lg-6 mb-4">
                   <label className="form-label">
                     Branch Admin
@@ -348,7 +345,6 @@ const AddBranch = () => {
               </div>
             </div>
 
-            {/* ── Branch Description ──────────────────── */}
             <div>
               <label className="form-label">
                 Branch Description <span className="text-danger">*</span>
@@ -390,7 +386,6 @@ const AddBranch = () => {
               </div>
             </div>
 
-            {/* ── Submit Button ───────────────────────── */}
             <div className="col-12 d-flex justify-content-end mt-4">
               <button
                 className="btn btn-primary"
