@@ -13,9 +13,7 @@ import {
     FiGithub, FiUpload, FiFile, FiX,
 } from 'react-icons/fi'
 
-// ══════════════════════════════════════════════════════════
-// VALIDATION RULES
-// ══════════════════════════════════════════════════════════
+
 
 const validateTaskNo = (v) => {
     if (v === '' || v === null || v === undefined) return 'Task number is required'
@@ -60,7 +58,6 @@ const validateRewardNo = (v) => {
     return ''
 }
 
-// Validates the array of reward detail strings
 const validateRewardsArray = (arr, expectedCount) => {
     if (!Array.isArray(arr) || arr.length !== expectedCount) {
         return `Please fill all ${expectedCount} reward details`
@@ -88,7 +85,6 @@ const validateTags        = (arr) => (!arr || arr.length === 0 ? 'Select at leas
 const validateEvaluators  = (arr) => (!arr || arr.length === 0 ? 'Select at least one evaluator' : '')
 const validateFileTypes   = (arr) => (!arr || arr.length === 0 ? 'Select at least one file type' : '')
 
-// Task document file validation (optional file)
 const validateTaskDocument = (file) => {
     if (!file) return ''
     const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'image/png', 'image/jpeg', 'text/plain']
@@ -101,9 +97,7 @@ const validateTaskDocument = (file) => {
     return ''
 }
 
-// ══════════════════════════════════════════════════════════
-// CONSTANTS
-// ══════════════════════════════════════════════════════════
+
 
 const REWARD_TYPE_OPTIONS = [
     { value: 'cash',        label: 'Cash' },
@@ -145,9 +139,7 @@ const initialForm = {
     taskResultDeadline: null,
 }
 
-// Note: taskRewards is validated separately because it depends on taskRewardNo
 const validators = {
-    // taskNo and passKey removed — auto-generated via API
     taskTitle: validateTitle,
     taskDescription: validateDescription,
     taskSubmissionDeadline: validateRequiredDate('Submission deadline'),
@@ -167,9 +159,7 @@ const keys = Object.keys(initialForm)
 const createTouched = () => keys.reduce((a, k) => ({ ...a, [k]: false }), {})
 const createErrors  = () => keys.reduce((a, k) => ({ ...a, [k]: '' }), {})
 
-// ══════════════════════════════════════════════════════════
-// REUSABLE FIELD COMPONENTS (outside main component)
-// ══════════════════════════════════════════════════════════
+
 
 const InputRow = ({ label, icon: Icon, fieldKey, type = 'text', inputRef, placeholder, maxLength, value, touched, error, onChange, onBlur, disabled, required = true, min, max }) => (
     <div className="mb-4">
@@ -287,28 +277,22 @@ const SwitchField = ({ label, subtitle, checked, onChange, disabled, icon: Icon 
     </div>
 )
 
-// ══════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ══════════════════════════════════════════════════════════
+
 
 const AddTask = () => {
     const API = process.env.NEXT_PUBLIC_API_URL
 
-    // ── Form state ────────────────────────────────────────
     const [form,    setForm]    = useState({ ...initialForm })
     const [errors,  setErrors]  = useState(createErrors())
     const [touched, setTouched] = useState(createTouched())
     const [submitting, setSubmitting] = useState(false)
 
-    // ── Reward array errors (separate from main errors) ──
     const [rewardArrayError, setRewardArrayError] = useState('')
 
-    // ── Task document (file) ──────────────────────────────
     const [taskDocFile,    setTaskDocFile]    = useState(null)
     const [taskDocError,   setTaskDocError]   = useState('')
     const taskDocInputRef = useRef(null)
 
-    // ── Dropdown data ─────────────────────────────────────
     const [orgWithBranches,     setOrgWithBranches]     = useState([])
     const [organizationOptions, setOrganizationOptions] = useState([])
     const [branchOptions,       setBranchOptions]       = useState([])
@@ -319,22 +303,17 @@ const AddTask = () => {
     const [loadingTags,       setLoadingTags]       = useState(true)
     const [loadingEvaluators, setLoadingEvaluators] = useState(false)
 
-    // ── Auto-generated credentials (taskNo + passKey) ─────
     const [loadingCredentials, setLoadingCredentials] = useState(true)
     const [credentialsError,   setCredentialsError]   = useState('')
 
-    // ── Constraint chip input ─────────────────────────────
     const [constraintInput, setConstraintInput] = useState('')
 
-    // ── Refs ──────────────────────────────────────────────
     const taskTitleRef    = useRef(null)
     const taskDescRef     = useRef(null)
     const taskRewardNoRef = useRef(null)
     const firstRewardRef  = useRef(null)
 
-    // ══════════════════════════════════════════════════════
-    // FETCH: orgs, tags, and credentials on mount (evaluators come later)
-    // ══════════════════════════════════════════════════════
+
     const fetchCredentials = async () => {
         try {
             setLoadingCredentials(true)
@@ -347,7 +326,6 @@ const AddTask = () => {
             if (!data || data.taskNo === undefined || !data.passKey) {
                 throw new Error('Invalid credentials response')
             }
-            // Inject into form
             setForm((prev) => ({
                 ...prev,
                 taskNo: String(data.taskNo),
@@ -398,9 +376,7 @@ const AddTask = () => {
         fetchCredentials()
     }, [API])
 
-    // ══════════════════════════════════════════════════════
-    // FETCH evaluators when orgScope changes
-    // ══════════════════════════════════════════════════════
+
     useEffect(() => {
         if (!form.orgScope) {
             setEvaluatorOptions([])
@@ -433,7 +409,6 @@ const AddTask = () => {
         fetchEvaluators()
     }, [form.orgScope, API])
 
-    // ── Filter branches when org scope changes ────────────
     useEffect(() => {
         if (form.orgScope) {
             const matched = orgWithBranches.find((o) => o.organizationId === form.orgScope)
@@ -447,15 +422,10 @@ const AddTask = () => {
         } else {
             setBranchOptions([])
         }
-        // Reset branch and evaluators since they depend on org
         setForm((prev) => ({ ...prev, branchScope: null, evaluators: [] }))
     }, [form.orgScope, orgWithBranches])
 
-    // ══════════════════════════════════════════════════════
-    // SYNC reward array length when taskRewardNo changes
-    // If user enters 3 → array has 3 slots. Preserve existing
-    // values when growing/shrinking.
-    // ══════════════════════════════════════════════════════
+
     useEffect(() => {
         const n = Number(form.taskRewardNo)
         if (Number.isNaN(n) || n < 1 || n > 50) return
@@ -472,9 +442,6 @@ const AddTask = () => {
         })
     }, [form.taskRewardNo])
 
-    // ══════════════════════════════════════════════════════
-    // FIELD HANDLERS
-    // ══════════════════════════════════════════════════════
 
     const handleChange = (field, value) => {
         setForm((prev) => ({ ...prev, [field]: value }))
@@ -513,14 +480,12 @@ const AddTask = () => {
         setForm((prev) => ({ ...prev, [field]: !prev[field] }))
     }
 
-    // ── Reward field handler ──────────────────────────────
     const handleRewardChange = (index, value) => {
         setForm((prev) => {
             const next = [...prev.taskRewards]
             next[index] = value
             return { ...prev, taskRewards: next }
         })
-        // Re-validate the whole array if it was already touched
         const n = Number(form.taskRewardNo)
         if (rewardArrayError) {
             const updated = [...form.taskRewards]
@@ -529,7 +494,6 @@ const AddTask = () => {
         }
     }
 
-    // ── Constraint handlers ───────────────────────────────
     const addConstraint = () => {
         const trimmed = constraintInput.trim()
         if (!trimmed) return
@@ -545,7 +509,6 @@ const AddTask = () => {
         setForm((prev) => ({ ...prev, taskConstraints: prev.taskConstraints.filter((_, i) => i !== idx) }))
     }
 
-    // ── Task document file handler ────────────────────────
     const handleTaskDocChange = (e) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -561,9 +524,7 @@ const AddTask = () => {
         if (taskDocInputRef.current) taskDocInputRef.current.value = ''
     }
 
-    // ══════════════════════════════════════════════════════
-    // SUBMIT
-    // ══════════════════════════════════════════════════════
+
     const handleSubmit = async () => {
         // Guard: credentials must be loaded
         if (!form.taskNo || !form.passKey) {
@@ -571,27 +532,22 @@ const AddTask = () => {
             return
         }
 
-        // Mark all touched
         const allTouched = Object.keys(validators).reduce((a, k) => ({ ...a, [k]: true }), {})
         setTouched((prev) => ({ ...prev, ...allTouched }))
 
-        // Validate all fields
         const newErrors = {}
         Object.keys(validators).forEach((k) => { newErrors[k] = validators[k](form[k]) })
         setErrors(newErrors)
 
-        // Validate reward array
         const rewardNo = Number(form.taskRewardNo)
         const rewardErr = !Number.isNaN(rewardNo) && rewardNo > 0
             ? validateRewardsArray(form.taskRewards, rewardNo)
             : ''
         setRewardArrayError(rewardErr)
 
-        // Validate task document (optional)
         const docErr = taskDocFile ? validateTaskDocument(taskDocFile) : ''
         setTaskDocError(docErr)
 
-        // Focus first invalid field
         const fieldRefs = {
             taskTitle: taskTitleRef,
             taskDescription: taskDescRef,
@@ -609,7 +565,6 @@ const AddTask = () => {
         }
         if (docErr) return
 
-        // Build FormData (multipart for file upload)
         const fd = new FormData()
         fd.append('taskNo', Number(form.taskNo))
         fd.append('taskTitle', form.taskTitle.trim())
@@ -628,7 +583,6 @@ const AddTask = () => {
         fd.append('isLive', form.isLive)
         fd.append('acceptGithubLink', form.acceptGithubLink)
         fd.append('acceptLiveLink',   form.acceptLiveLink)
-        // branchScope is optional — append empty string if not selected
         // (FormData converts null/undefined to the string "null"/"undefined")
         fd.append('branchScope', form.branchScope || '')
         fd.append('orgScope',    form.orgScope)
@@ -662,9 +616,7 @@ const AddTask = () => {
         }
     }
 
-    // ══════════════════════════════════════════════════════
-    // RENDER
-    // ══════════════════════════════════════════════════════
+
 
     const rewardCount = Number(form.taskRewardNo)
     const showRewardFields = !Number.isNaN(rewardCount) && rewardCount >= 1 && rewardCount <= 50
@@ -683,7 +635,6 @@ const AddTask = () => {
 
                 <div className="card-body">
 
-                    {/* ═══════ BASIC INFO ═══════ */}
                     <SectionDivider icon={FiFileText} title="Basic Information" subtitle="Task identity and overview" />
 
                     <div className="row">
@@ -726,7 +677,6 @@ const AddTask = () => {
                         </div>
                         
 
-                    {/* ── Task Document File Upload ─────────── */}
                         <div className="mb-4 col-md-6 col-12">
                             <label className="form-label fw-semibold">
                                 Task Document <span className="text-muted fs-11 ms-1">(optional)</span>
@@ -772,7 +722,6 @@ const AddTask = () => {
 
                     <hr className="my-4" />
 
-                    {/* ═══════ DEADLINES ═══════ */}
                     <SectionDivider icon={FiCalendar} title="Deadlines & Schedule" subtitle="When the task opens, closes, and results come out" />
 
                     <div className="row">
@@ -810,7 +759,6 @@ const AddTask = () => {
 
                     <hr className="my-4" />
 
-                    {/* ═══════ REWARDS ═══════ */}
                     <SectionDivider icon={FiAward} title="Rewards" subtitle="What participants will earn" />
 
                     <div className="row">
@@ -828,7 +776,6 @@ const AddTask = () => {
                         </div>
                     </div>
 
-                    {/* ── Dynamic reward detail fields ─────── */}
                     {showRewardFields && (
                         <div className="mb-4 p-3 rounded-3" style={{ background: '#fafafa', border: '1px solid #e5e7eb' }}>
                             <label className="form-label fw-semibold mb-3 d-block">
@@ -867,7 +814,6 @@ const AddTask = () => {
 
                     <hr className="my-4" />
 
-                    {/* ═══════ TAGS & CONSTRAINTS ═══════ */}
                     <SectionDivider icon={FiTag} title="Tags & Constraints" subtitle="Categorize the task and set rules" />
 
                     <div className="row">
@@ -925,7 +871,6 @@ const AddTask = () => {
 
                     <hr className="my-4" />
 
-                    {/* ═══════ SUBMISSION SETTINGS ═══════ */}
                     <SectionDivider icon={FiSettings} title="Submission Settings" subtitle="What participants can upload or share" />
 
                     <div className="mb-4">
@@ -956,7 +901,6 @@ const AddTask = () => {
 
                     <hr className="my-4" />
 
-                    {/* ═══════ SCOPE ═══════ */}
                     <SectionDivider icon={FiBriefcase} title="Scope" subtitle="Who can see and participate in this task" />
 
                     <div className="row">
@@ -978,7 +922,6 @@ const AddTask = () => {
 
                     <hr className="my-4" />
 
-                    {/* ═══════ EVALUATION & ACCESS ═══════ */}
                     <SectionDivider icon={FiUsers} title="Evaluation & Access" subtitle="Who evaluates and how to enter" />
 
                     
@@ -1080,7 +1023,6 @@ const AddTask = () => {
                     
                 </div>
 
-                {/* Footer */}
                 <div className="card-footer d-flex align-items-center justify-content-between bg-transparent">
                     <span className="fs-11 text-muted">
                         <span className="text-danger">*</span> indicates required fields
