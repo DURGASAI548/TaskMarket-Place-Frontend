@@ -55,7 +55,7 @@ const validateRewardNo = (v) => {
     const n = Number(v)
     if (Number.isNaN(n)) return 'Must be a number'
     if (n < 1) return 'Must have at least 1 reward'
-    if (n > 20) return 'Maximum 20 rewards allowed'
+    if (n > 50) return 'Maximum 50 rewards allowed'
     if (!Number.isInteger(n)) return 'Must be a whole number'
     return ''
 }
@@ -147,7 +147,7 @@ const initialForm = {
 
 // Note: taskRewards is validated separately because it depends on taskRewardNo
 const validators = {
-    taskNo: validateTaskNo,
+    // taskNo and passKey removed — auto-generated via API
     taskTitle: validateTitle,
     taskDescription: validateDescription,
     taskSubmissionDeadline: validateRequiredDate('Submission deadline'),
@@ -157,9 +157,8 @@ const validators = {
     taskRewardNo: validateRewardNo,
     taskTags: validateTags,
     fileAcceptType: validateFileTypes,
-    branchScope: validateBranch,
+    // branchScope removed — it's optional
     orgScope: validateOrganization,
-    passKey: validatePassKey,
     evaluators: validateEvaluators,
     taskResultDeadline: validateRequiredDate('Result deadline'),
 }
@@ -215,7 +214,11 @@ const TextAreaRow = ({ label, fieldKey, rows = 4, placeholder, maxLength, value,
 const DropdownField = ({ label, options, loading, loadingText, selectedValue, touched, error, fieldKey, onSelect, hint, required = true }) => (
     <div className="mb-4">
         <label className="form-label fw-semibold">
-            {label} {required && <span className="text-danger">*</span>}
+            {label}{' '}
+            {required
+                ? <span className="text-danger">*</span>
+                : <span className="text-muted fs-11 ms-1">(optional)</span>
+            }
         </label>
         {loading ? (
             <div className="d-flex align-items-center py-2">
@@ -242,15 +245,15 @@ const DatePickerField = ({ label, fieldKey, value, touched, error, onChange, onB
         <label className="form-label fw-semibold d-block">
             {label} {required && <span className="text-danger">*</span>}
         </label>
-        {/* <div className="position-relative"> */}
-            {/* <FiCalendar size={15} className="text-muted position-absolute" style={{ left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1, pointerEvents: 'none' }} /> */}
+        <div className="position-relative">
+            <FiCalendar size={15} className="text-muted position-absolute" style={{ left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1, pointerEvents: 'none' }} />
             <DatePicker selected={value}
                 onChange={(date) => { onChange(fieldKey, date); onBlur(fieldKey) }}
                 showTimeSelect dateFormat="MMM d, yyyy h:mm aa"
                 placeholderText={placeholder} showPopperArrow={false} minDate={minDate}
-                className={`form-control  ${touched ? (error ? 'is-invalid' : '') : ''}`}
+                className={`form-control ps-5 ${touched ? (error ? 'is-invalid' : '') : ''}`}
                 wrapperClassName="w-100" disabled={disabled} popperPlacement="bottom-start" />
-        {/* </div> */}
+        </div>
         {touched && error && <div className="invalid-feedback d-block">{error}</div>}
     </div>
 )
@@ -316,26 +319,57 @@ const AddTask = () => {
     const [loadingTags,       setLoadingTags]       = useState(true)
     const [loadingEvaluators, setLoadingEvaluators] = useState(false)
 
+    // ── Auto-generated credentials (taskNo + passKey) ─────
+    const [loadingCredentials, setLoadingCredentials] = useState(true)
+    const [credentialsError,   setCredentialsError]   = useState('')
+
     // ── Constraint chip input ─────────────────────────────
     const [constraintInput, setConstraintInput] = useState('')
 
     // ── Refs ──────────────────────────────────────────────
-    const taskNoRef       = useRef(null)
     const taskTitleRef    = useRef(null)
     const taskDescRef     = useRef(null)
     const taskRewardNoRef = useRef(null)
-    const passKeyRef      = useRef(null)
     const firstRewardRef  = useRef(null)
 
     // ══════════════════════════════════════════════════════
-    // FETCH: orgs and tags on mount (evaluators come later)
+    // FETCH: orgs, tags, and credentials on mount (evaluators come later)
     // ══════════════════════════════════════════════════════
+    const fetchCredentials = async () => {
+        try {
+            setLoadingCredentials(true)
+            setCredentialsError('')
+            const res = await axios.get(
+                `${API}/api/get-task-credentials`,
+                { withCredentials: true }
+            )
+            const data = res.data?.data
+            if (!data || data.taskNo === undefined || !data.passKey) {
+                throw new Error('Invalid credentials response')
+            }
+            // Inject into form
+            setForm((prev) => ({
+                ...prev,
+                taskNo: String(data.taskNo),
+                passKey: String(data.passKey),
+            }))
+        } catch (err) {
+            console.error('Failed to fetch task credentials:', err)
+            setCredentialsError(
+                err?.response?.data?.message || 'Failed to generate task credentials.'
+            )
+            topTost?.('error', 'Failed to generate task number & pass key.')
+        } finally {
+            setLoadingCredentials(false)
+        }
+    }
+
     useEffect(() => {
         const loadInitial = async () => {
             try {
                 const [orgRes, tagRes] = await Promise.all([
                     axios.get(`${API}/api/get-org-with-branches`, { withCredentials: true }).catch(() => ({ data: { data: [] } })),
-                    axios.get(`${API}/api/get-tags`, { withCredentials: true }).catch(() => ({ data: { data: [] } })),
+                    axios.get(`${API}/api/get-all-tags`, { withCredentials: true }).catch(() => ({ data: { data: [] } })),
                 ])
 
                 const orgData = orgRes.data?.data || []
@@ -348,7 +382,7 @@ const AddTask = () => {
                 setTagOptions(
                     tagData.map((t) => ({
                         value: t._id || t.tagId,
-                        label: t.tagName || t.name,
+                        label: t.TagName || t.name,
                         color: t.color || '#4f46e5',
                     }))
                 )
@@ -361,6 +395,7 @@ const AddTask = () => {
             }
         }
         loadInitial()
+        fetchCredentials()
     }, [API])
 
     // ══════════════════════════════════════════════════════
@@ -530,6 +565,12 @@ const AddTask = () => {
     // SUBMIT
     // ══════════════════════════════════════════════════════
     const handleSubmit = async () => {
+        // Guard: credentials must be loaded
+        if (!form.taskNo || !form.passKey) {
+            topTost?.('error', 'Task credentials not loaded. Please regenerate.')
+            return
+        }
+
         // Mark all touched
         const allTouched = Object.keys(validators).reduce((a, k) => ({ ...a, [k]: true }), {})
         setTouched((prev) => ({ ...prev, ...allTouched }))
@@ -552,11 +593,9 @@ const AddTask = () => {
 
         // Focus first invalid field
         const fieldRefs = {
-            taskNo: taskNoRef,
             taskTitle: taskTitleRef,
             taskDescription: taskDescRef,
             taskRewardNo: taskRewardNoRef,
-            passKey: passKeyRef,
         }
         for (const k of Object.keys(validators)) {
             if (newErrors[k]) {
@@ -589,7 +628,9 @@ const AddTask = () => {
         fd.append('isLive', form.isLive)
         fd.append('acceptGithubLink', form.acceptGithubLink)
         fd.append('acceptLiveLink',   form.acceptLiveLink)
-        fd.append('branchScope', form.branchScope)
+        // branchScope is optional — append empty string if not selected
+        // (FormData converts null/undefined to the string "null"/"undefined")
+        fd.append('branchScope', form.branchScope || '')
         fd.append('orgScope',    form.orgScope)
         fd.append('passKey',     form.passKey.trim())
         fd.append('taskResultDeadline', form.taskResultDeadline.toISOString())
@@ -610,6 +651,8 @@ const AddTask = () => {
             setRewardArrayError('')
             setConstraintInput('')
             removeTaskDoc()
+            // Generate fresh credentials for the next task
+            fetchCredentials()
         } catch (err) {
             console.error('Failed to create task:', err)
             const msg = err?.response?.data?.message || 'Failed to create task. Please try again.'
@@ -624,7 +667,7 @@ const AddTask = () => {
     // ══════════════════════════════════════════════════════
 
     const rewardCount = Number(form.taskRewardNo)
-    const showRewardFields = !Number.isNaN(rewardCount) && rewardCount >= 1 && rewardCount <= 20
+    const showRewardFields = !Number.isNaN(rewardCount) && rewardCount >= 1 && rewardCount <= 50
 
     return (
         <div className="col-xxl-10 col-xl-11 col-12">
@@ -645,10 +688,26 @@ const AddTask = () => {
 
                     <div className="row">
                         <div className="col-md-3">
-                            <InputRow label="Task No" icon={FiHash} fieldKey="taskNo" type="number" min="1" inputRef={taskNoRef}
-                                placeholder="e.g., 101"
-                                value={form.taskNo} touched={touched.taskNo} error={errors.taskNo}
-                                onChange={handleChange} onBlur={handleBlur} disabled={submitting} />
+                            <div className="mb-4">
+                                <label className="form-label fw-semibold d-flex align-items-center justify-content-between">
+                                    <span>Task No <span className="text-muted fs-11 ms-1">(auto)</span></span>
+                                </label>
+                                <div className="position-relative">
+                                    <FiHash size={15} className="text-muted position-absolute"
+                                        style={{ left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        className="form-control ps-5"
+                                        style={{ background: '#f3f4f6', cursor: 'not-allowed', fontWeight: 600 }}
+                                        value={
+                                            loadingCredentials ? 'Generating…'
+                                            : credentialsError ? '—'
+                                            : form.taskNo || '—'
+                                        }
+                                    />
+                                </div>
+                            </div>
                         </div>
                         <div className="col-md-9">
                             <InputRow label="Task Title" icon={FiFileText} fieldKey="taskTitle" inputRef={taskTitleRef}
@@ -658,50 +717,58 @@ const AddTask = () => {
                         </div>
                     </div>
 
-                    <TextAreaRow label="Task Description" fieldKey="taskDescription" rows={5} maxLength={5000}
+                    <div className="row">
+                        <div className="col-md-6 col-12">
+                            <TextAreaRow label="Task Description" fieldKey="taskDescription" rows={5} maxLength={5000}
                         placeholder="Detailed description of what the task involves"
                         value={form.taskDescription} touched={touched.taskDescription} error={errors.taskDescription}
                         onChange={handleChange} onBlur={handleBlur} disabled={submitting} />
+                        </div>
+                        
 
                     {/* ── Task Document File Upload ─────────── */}
-                    <div className="mb-4">
-                        <label className="form-label fw-semibold">
-                            Task Document <span className="text-muted fs-11 ms-1">(optional)</span>
-                        </label>
-                        {taskDocFile ? (
-                            <div className="d-flex align-items-center gap-3 p-3 border rounded-3" style={{ background: '#f8faf8' }}>
-                                <div className="d-flex align-items-center justify-content-center rounded-2 flex-shrink-0"
-                                    style={{ width: 40, height: 40, background: '#dcfce7' }}>
-                                    <FiFile size={18} className="text-success" />
-                                </div>
-                                <div className="flex-grow-1 min-width-0">
-                                    <div className="fs-13 fw-medium text-truncate">{taskDocFile.name}</div>
-                                    <div className="fs-11 text-muted">{(taskDocFile.size / 1024).toFixed(1)} KB</div>
-                                </div>
-                                <button className="btn btn-sm btn-outline-danger border-0 p-1"
-                                    onClick={removeTaskDoc} disabled={submitting} title="Remove file">
-                                    <FiX size={16} />
-                                </button>
-                            </div>
-                        ) : (
-                            <label htmlFor="task-doc-input"
-                                className="d-flex flex-column align-items-center justify-content-center gap-2 p-4 border border-dashed rounded-3 c-pointer"
-                                style={{ background: '#fafafa', cursor: 'pointer', minHeight: 110 }}>
-                                <div className="d-flex align-items-center justify-content-center rounded-circle"
-                                    style={{ width: 44, height: 44, background: '#eef2ff' }}>
-                                    <FiUpload size={18} className="text-primary" />
-                                </div>
-                                <div className="text-center">
-                                    <span className="fs-13 fw-medium text-dark d-block">Upload task document</span>
-                                    <span className="fs-11 text-muted">PDF, DOC, DOCX, PPT, PPTX, PNG, JPG, TXT — Max 10MB</span>
-                                </div>
-                                <input ref={taskDocInputRef} type="file" id="task-doc-input"
-                                    accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.txt"
-                                    onChange={handleTaskDocChange} disabled={submitting} hidden />
+                        <div className="mb-4 col-md-6 col-12">
+                            <label className="form-label fw-semibold">
+                                Task Document <span className="text-muted fs-11 ms-1">(optional)</span>
                             </label>
-                        )}
-                        {taskDocError && <div className="invalid-feedback d-block">{taskDocError}</div>}
+                            {taskDocFile ? (
+                                <div className="d-flex align-items-center gap-3 p-3 border rounded-3" style={{ background: '#f8faf8' }}>
+                                    <div className="d-flex align-items-center justify-content-center rounded-2 flex-shrink-0"
+                                        style={{ width: 40, height: 40, background: '#dcfce7' }}>
+                                        <FiFile size={18} className="text-success" />
+                                    </div>
+                                    <div className="flex-grow-1 min-width-0">
+                                        <div className="fs-13 fw-medium text-truncate">{taskDocFile.name}</div>
+                                        <div className="fs-11 text-muted">{(taskDocFile.size / 1024).toFixed(1)} KB</div>
+                                    </div>
+                                    <button className="btn btn-sm btn-outline-danger border-0 p-1"
+                                        onClick={removeTaskDoc} disabled={submitting} title="Remove file">
+                                        <FiX size={16} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <label htmlFor="task-doc-input"
+                                    className="d-flex flex-column align-items-center justify-content-center gap-2 p-4 border border-dashed rounded-3 c-pointer"
+                                    style={{ background: '#fafafa', cursor: 'pointer', minHeight: 110 }}>
+                                    <div className="d-flex align-items-center justify-content-center rounded-circle"
+                                        style={{ width: 44, height: 44, background: '#eef2ff' }}>
+                                        <FiUpload size={18} className="text-primary" />
+                                    </div>
+                                    <div className="text-center">
+                                        <span className="fs-13 fw-medium text-dark d-block">Upload task document</span>
+                                        <span className="fs-11 text-muted">PDF, DOC, DOCX, PPT, PPTX, PNG, JPG, TXT — Max 10MB</span>
+                                    </div>
+                                    <input ref={taskDocInputRef} type="file" id="task-doc-input"
+                                        accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.txt"
+                                        onChange={handleTaskDocChange} disabled={submitting} hidden />
+                                </label>
+                            )}
+                            {taskDocError && <div className="invalid-feedback d-block">{taskDocError}</div>}
+                        </div>
                     </div>
+                    
+
+
 
                     <hr className="my-4" />
 
@@ -754,7 +821,7 @@ const AddTask = () => {
                                 fieldKey="taskRewardType" onSelect={handleDropdown} />
                         </div>
                         <div className="col-md-6">
-                            <InputRow label="Number of Rewards" icon={FiHash} fieldKey="taskRewardNo" type="number" min="1" max="20" inputRef={taskRewardNoRef}
+                            <InputRow label="Number of Rewards" icon={FiHash} fieldKey="taskRewardNo" type="number" min="1" max="50" inputRef={taskRewardNoRef}
                                 placeholder="e.g., 3 (top 3 winners)"
                                 value={form.taskRewardNo} touched={touched.taskRewardNo} error={errors.taskRewardNo}
                                 onChange={handleChange} onBlur={handleBlur} disabled={submitting} />
@@ -803,54 +870,58 @@ const AddTask = () => {
                     {/* ═══════ TAGS & CONSTRAINTS ═══════ */}
                     <SectionDivider icon={FiTag} title="Tags & Constraints" subtitle="Categorize the task and set rules" />
 
-                    <div className="mb-4">
-                        <label className="form-label fw-semibold">
-                            Task Tags <span className="text-danger">*</span>
-                        </label>
-                        {loadingTags ? (
-                            <div className="d-flex align-items-center py-2">
-                                <RotatingLines visible height="22" width="22" color="blue" strokeWidth="5" animationDuration="0.75" />
-                                <span className="text-muted fs-13 ms-2">Loading tags...</span>
-                            </div>
-                        ) : (
-                            <>
-                                <MultiSelectTags options={tagOptions} placeholder="Select tags..."
-                                    onChange={(selected) => handleMultiSelect('taskTags', selected)} />
-                                {touched.taskTags && errors.taskTags && (
-                                    <div className="invalid-feedback d-block">{errors.taskTags}</div>
-                                )}
-                            </>
-                        )}
-                    </div>
-
-                    <div className="mb-4">
-                        <label className="form-label fw-semibold">
-                            Task Constraints <span className="text-muted fs-11 ms-1">(optional)</span>
-                        </label>
-                        <div className="d-flex gap-2 mb-2">
-                            <input type="text" className="form-control"
-                                placeholder="Type a constraint and press Enter"
-                                value={constraintInput}
-                                onChange={(e) => setConstraintInput(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addConstraint() } }}
-                                disabled={submitting} maxLength={200} />
-                            <button type="button" className="btn btn-outline-primary"
-                                onClick={addConstraint} disabled={submitting || !constraintInput.trim()}>
-                                Add
-                            </button>
+                    <div className="row">
+                        <div className="col-md-6 col-12">
+                            <label className="form-label fw-semibold">
+                                Task Tags <span className="text-danger">*</span>
+                            </label>
+                            {loadingTags ? (
+                                <div className="d-flex align-items-center py-2">
+                                    <RotatingLines visible height="22" width="22" color="blue" strokeWidth="5" animationDuration="0.75" />
+                                    <span className="text-muted fs-13 ms-2">Loading tags...</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <MultiSelectTags options={tagOptions} placeholder="Select tags..."
+                                        onChange={(selected) => handleMultiSelect('taskTags', selected)} />
+                                    {touched.taskTags && errors.taskTags && (
+                                        <div className="invalid-feedback d-block">{errors.taskTags}</div>
+                                    )}
+                                </>
+                            )}
                         </div>
-                        {form.taskConstraints.length > 0 && (
-                            <div className="d-flex flex-wrap gap-2">
-                                {form.taskConstraints.map((c, idx) => (
-                                    <span key={idx} className="badge bg-soft-primary text-primary d-flex align-items-center gap-1 py-2 px-2 fs-12">
-                                        {c}
-                                        <button type="button" className="btn p-0 border-0 bg-transparent text-primary"
-                                            style={{ lineHeight: 1 }} onClick={() => removeConstraint(idx)}>✕</button>
-                                    </span>
-                                ))}
+                        <div className="col-md-6 col-12">
+                            <label className="form-label fw-semibold">
+                                Task Constraints <span className="text-muted fs-11 ms-1">(optional)</span>
+                            </label>
+                            <div className="d-flex gap-2 mb-2">
+                                <input type="text" className="form-control"
+                                    placeholder="Type a constraint and press Enter"
+                                    value={constraintInput}
+                                    onChange={(e) => setConstraintInput(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addConstraint() } }}
+                                    disabled={submitting} maxLength={200} />
+                                <button type="button" className="btn btn-outline-primary"
+                                    onClick={addConstraint} disabled={submitting || !constraintInput.trim()}>
+                                    Add
+                                </button>
                             </div>
-                        )}
+                                {form.taskConstraints.length > 0 && (
+                                    <div className="d-flex flex-wrap gap-2">
+                                        {form.taskConstraints.map((c, idx) => (
+                                            <span key={idx} className="badge bg-soft-primary text-primary d-flex align-items-center gap-1 py-2 px-2 fs-12">
+                                                {c}
+                                                <button type="button" className="btn p-0 border-0 bg-transparent text-primary"
+                                                    style={{ lineHeight: 1 }} onClick={() => removeConstraint(idx)}>✕</button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                     </div>
+                    
+
+                    
 
                     <hr className="my-4" />
 
@@ -900,7 +971,8 @@ const AddTask = () => {
                                 options={branchOptions} loading={loadingDropdowns} loadingText="Loading..."
                                 selectedValue={form.branchScope} touched={touched.branchScope} error={errors.branchScope}
                                 fieldKey="branchScope" onSelect={handleDropdown}
-                                hint="Select an organization first" />
+                                hint="Select an organization first"
+                                required={false} />
                         </div>
                     </div>
 
@@ -909,69 +981,103 @@ const AddTask = () => {
                     {/* ═══════ EVALUATION & ACCESS ═══════ */}
                     <SectionDivider icon={FiUsers} title="Evaluation & Access" subtitle="Who evaluates and how to enter" />
 
-                    <div className="mb-4">
-                        <label className="form-label fw-semibold">
-                            Evaluators <span className="text-danger">*</span>
-                            {!form.orgScope && (
-                                <span className="text-muted fs-11 ms-2">(select organization first)</span>
-                            )}
-                        </label>
-                        {!form.orgScope ? (
-                            <div className="d-flex align-items-center gap-2 p-3 rounded-3 fs-12 text-muted"
-                                style={{ background: '#f9fafb', border: '1px dashed #e5e7eb' }}>
-                                <FiInfo size={14} />
-                                <span>Pick an organization in the Scope section to load its evaluators.</span>
-                            </div>
-                        ) : loadingEvaluators ? (
-                            <div className="d-flex align-items-center py-2">
-                                <RotatingLines visible height="22" width="22" color="blue" strokeWidth="5" animationDuration="0.75" />
-                                <span className="text-muted fs-13 ms-2">Loading evaluators for this organization...</span>
-                            </div>
-                        ) : evaluatorOptions.length === 0 ? (
-                            <div className="d-flex align-items-center gap-2 p-3 rounded-3 fs-12 text-warning"
-                                style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
-                                <FiInfo size={14} />
-                                <span>No evaluators found for the selected organization.</span>
-                            </div>
-                        ) : (
-                            <>
-                                {/* key forces remount when org changes — clears any internal state */}
-                                <MultiSelectTags
-                                    key={form.orgScope}
-                                    options={evaluatorOptions}
-                                    placeholder="Select evaluators..."
-                                    onChange={(selected) => handleMultiSelect('evaluators', selected)}
-                                />
-                                {touched.evaluators && errors.evaluators && (
-                                    <div className="invalid-feedback d-block">{errors.evaluators}</div>
-                                )}
-                            </>
-                        )}
-                    </div>
+                    
 
                     <div className="row">
-                        <div className="col-md-6">
-                            <InputRow label="Pass Key" icon={FiKey} fieldKey="passKey" inputRef={passKeyRef}
-                                placeholder="Secret access code" maxLength={50}
-                                value={form.passKey} touched={touched.passKey} error={errors.passKey}
-                                onChange={handleChange} onBlur={handleBlur} disabled={submitting} />
+                        <div className="col-md-6 col-12">
+                            <div className="mb-4">
+                                <label className="form-label fw-semibold">
+                                    Evaluators <span className="text-danger">*</span>
+                                    {!form.orgScope && (
+                                        <span className="text-muted fs-11 ms-2">(select organization first)</span>
+                                    )}
+                                </label>
+                                {!form.orgScope ? (
+                                    <div className="d-flex align-items-center gap-2 p-3 rounded-3 fs-12 text-muted"
+                                        style={{ background: '#f9fafb', border: '1px dashed #e5e7eb' }}>
+                                        <FiInfo size={14} />
+                                        <span>Pick an organization in the Scope section to load its evaluators.</span>
+                                    </div>
+                                ) : loadingEvaluators ? (
+                                    <div className="d-flex align-items-center py-2">
+                                        <RotatingLines visible height="22" width="22" color="blue" strokeWidth="5" animationDuration="0.75" />
+                                        <span className="text-muted fs-13 ms-2">Loading evaluators for this organization...</span>
+                                    </div>
+                                ) : evaluatorOptions.length === 0 ? (
+                                    <div className="d-flex align-items-center gap-2 p-3 rounded-3 fs-12 text-warning"
+                                        style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+                                        <FiInfo size={14} />
+                                        <span>No evaluators found for the selected organization.</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* key forces remount when org changes — clears any internal state */}
+                                        <MultiSelectTags
+                                            key={form.orgScope}
+                                            options={evaluatorOptions}
+                                            placeholder="Select evaluators..."
+                                            onChange={(selected) => handleMultiSelect('evaluators', selected)}
+                                        />
+                                        {touched.evaluators && errors.evaluators && (
+                                            <div className="invalid-feedback d-block">{errors.evaluators}</div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </div>
-                        <div className="col-md-6 d-flex align-items-start">
+                        <div className="col-md-6 col-12">
+                            <div className="mb-4">
+                                <label className="form-label fw-semibold d-flex align-items-center justify-content-between">
+                                    <span>Pass Key <span className="text-muted fs-11 ms-1">(auto)</span></span>
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-link text-decoration-none p-0 fs-11"
+                                        onClick={fetchCredentials}
+                                        disabled={loadingCredentials || submitting}
+                                        title="Generate new task no & pass key"
+                                    >
+                                        ↻ Regenerate
+                                    </button>
+                                </label>
+                                <div className="position-relative">
+                                    <FiKey size={15} className="text-muted position-absolute"
+                                        style={{ left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1 }} />
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        className="form-control ps-5"
+                                        style={{ background: '#f3f4f6', cursor: 'not-allowed', fontFamily: 'monospace', fontWeight: 600, letterSpacing: '0.05em' }}
+                                        value={
+                                            loadingCredentials ? 'Generating…'
+                                            : credentialsError ? '—'
+                                            : form.passKey || '—'
+                                        }
+                                    />
+                                </div>
+                                {credentialsError && (
+                                    <div className="text-danger fs-11 mt-1">{credentialsError}</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="row">
+                        <div className="col-md-6 col-12 d-flex align-items-start">
                             <div className="w-100">
                                 <SwitchField icon={FiToggleLeft} label="Make Task Live"
                                     subtitle="Visible to participants right away"
                                     checked={form.isLive}
                                     onChange={() => handleToggle('isLive')} disabled={submitting} />
                             </div>
-                        </div>
                     </div>
-
-                    <div className="d-flex align-items-start gap-2 p-3 rounded-3" style={{ background: '#eff6ff' }}>
+                    
+                    <div className="col-md-6 col-12 d-flex align-items-start gap-2 p-3 rounded-3" style={{ background: '#eff6ff' }}>
                         <FiInfo size={16} className="text-primary flex-shrink-0 mt-1" />
                         <div className="fs-12 text-muted">
                             Once created, you can edit the task to update deadlines, rewards, and evaluators. Participants will only see the task when it's marked <strong>Live</strong> and registration is open.
                         </div>
                     </div>
+                    </div>
+                    
                 </div>
 
                 {/* Footer */}
@@ -980,7 +1086,7 @@ const AddTask = () => {
                         <span className="text-danger">*</span> indicates required fields
                     </span>
                     <button className="btn btn-primary d-flex align-items-center"
-                        onClick={handleSubmit} disabled={submitting}>
+                        onClick={handleSubmit} disabled={submitting || loadingCredentials || !form.taskNo || !form.passKey}>
                         {submitting ? (
                             <RotatingLines visible height="20" width="20" color="white" strokeWidth="5" animationDuration="0.75" />
                         ) : (

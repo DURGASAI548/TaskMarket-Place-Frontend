@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
 import Select from 'react-select'
-const MultiSelectTags = ({ options, defaultSelect, placeholder }) => {
+const MultiSelectTags = ({ options, defaultSelect, onChange, placeholder }) => {
     return (
         <Select
             defaultValue={defaultSelect}
@@ -19,7 +19,11 @@ const MultiSelectTags = ({ options, defaultSelect, placeholder }) => {
             }}
             hideSelectedOptions={false}
             isSearchable={false}
-            // onChange={(e) => console.log(e)}
+            onChange={(selected) => {
+                if (onChange) {
+                    onChange(selected)
+                }
+            }}
             formatOptionLabel={tags => (
                 <div className="user-option d-flex align-items-center gap-2">
                     <span style={{ marginTop: "1px", backgroundColor: `${tags.color}` }} className={`wd-7 ht-7 rounded-circle`}></span>
