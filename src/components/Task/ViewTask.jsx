@@ -4,8 +4,9 @@ import Link from 'next/link'
 import {
     FiMoreVertical, FiEdit, FiTrash2, FiSearch, FiX, FiPlus,
     FiAlertCircle, FiRefreshCw, FiCalendar, FiAward, FiUsers,
-    FiBriefcase, FiHash, FiClock, FiChevronLeft, FiChevronRight,
-    FiCheckCircle, FiXCircle, FiActivity, FiTag, FiEye,
+    FiBriefcase, FiClock, FiChevronLeft, FiChevronRight,
+    FiCheckCircle, FiActivity, FiTag, FiEye, FiZap,
+    FiLayers, FiTrendingUp, FiPauseCircle, FiPlayCircle,
 } from 'react-icons/fi'
 import CardHeader from '@/components/shared/CardHeader'
 import CardLoader from '@/components/shared/CardLoader'
@@ -14,28 +15,46 @@ import topTost from '@/utils/topTost'
 import { RotatingLines } from 'react-loader-spinner'
 import axios from 'axios'
 
-const PAGE_SIZE = 9   // 3x3 grid on desktop
+const PAGE_SIZE = 9
 
 // ══════════════════════════════════════════════════════════
 // HELPERS
 // ══════════════════════════════════════════════════════════
 
-const formatDate = (dateStr) => {
-    if (!dateStr) return '—'
-    return new Date(dateStr).toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
-    })
+const formatDate = (d) => {
+    if (!d) return '—'
+    return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-const formatDateTime = (dateStr) => {
-    if (!dateStr) return '—'
-    return new Date(dateStr).toLocaleString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
-        hour: 'numeric', minute: '2-digit',
-    })
+const formatFullDate = (d) => {
+    if (!d) return '—'
+    return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// Compute derived status: upcoming / registration-open / submission-open / evaluation / completed
+// Status with rich theming for each phase
+const STATUS_THEMES = {
+    upcoming: {
+        label: 'Upcoming', icon: FiClock, color: '#64748b', bg: '#f1f5f9',
+        accent: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)',
+    },
+    registration: {
+        label: 'Registration Open', icon: FiPlayCircle, color: '#16a34a', bg: '#dcfce7',
+        accent: 'linear-gradient(135deg, #4ade80 0%, #16a34a 100%)',
+    },
+    submission: {
+        label: 'Submissions Open', icon: FiZap, color: '#2563eb', bg: '#dbeafe',
+        accent: 'linear-gradient(135deg, #60a5fa 0%, #2563eb 100%)',
+    },
+    evaluation: {
+        label: 'Evaluating', icon: FiActivity, color: '#d97706', bg: '#fef3c7',
+        accent: 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)',
+    },
+    completed: {
+        label: 'Completed', icon: FiCheckCircle, color: '#475569', bg: '#e2e8f0',
+        accent: 'linear-gradient(135deg, #94a3b8 0%, #475569 100%)',
+    },
+}
+
 const getTaskStatus = (task) => {
     const now = new Date()
     const liveFrom  = task.taskRegistrationLiveFrom ? new Date(task.taskRegistrationLiveFrom) : null
@@ -43,20 +62,39 @@ const getTaskStatus = (task) => {
     const subEnd    = task.taskSubmissionDeadline   ? new Date(task.taskSubmissionDeadline)   : null
     const resultEnd = task.taskResultDeadline       ? new Date(task.taskResultDeadline)       : null
 
-    if (liveFrom && now < liveFrom)               return { key: 'upcoming',     label: 'Upcoming',          color: 'secondary' }
-    if (regEnd && now < regEnd)                   return { key: 'registration', label: 'Registration Open', color: 'success'   }
-    if (subEnd && now < subEnd)                   return { key: 'submission',   label: 'Submissions Open',  color: 'primary'   }
-    if (resultEnd && now < resultEnd)             return { key: 'evaluation',   label: 'Evaluating',        color: 'warning'   }
-    return { key: 'completed', label: 'Completed', color: 'dark' }
+    if (liveFrom && now < liveFrom)   return { key: 'upcoming',     ...STATUS_THEMES.upcoming,     nextDate: liveFrom,  nextLabel: 'Starts in' }
+    if (regEnd   && now < regEnd)     return { key: 'registration', ...STATUS_THEMES.registration, nextDate: regEnd,    nextLabel: 'Registration closes in' }
+    if (subEnd   && now < subEnd)     return { key: 'submission',   ...STATUS_THEMES.submission,   nextDate: subEnd,    nextLabel: 'Submission closes in' }
+    if (resultEnd && now < resultEnd) return { key: 'evaluation',   ...STATUS_THEMES.evaluation,   nextDate: resultEnd, nextLabel: 'Results in' }
+    return { key: 'completed', ...STATUS_THEMES.completed, nextDate: null, nextLabel: '' }
 }
 
-// Soft hash → color for the avatar circle
-const COLOR_PALETTE = ['#6366f1', '#06b6d4', '#16a34a', '#ea580c', '#dc2626', '#7c3aed', '#0891b2', '#be185d']
-const colorForString = (str) => {
+// Time-until helper: "3 days", "5 hours", "Today"
+const timeUntil = (date) => {
+    if (!date) return ''
+    const diff = new Date(date) - new Date()
+    if (diff <= 0) return 'Now'
+    const minutes = Math.floor(diff / 60000)
+    const hours   = Math.floor(minutes / 60)
+    const days    = Math.floor(hours / 24)
+    if (days > 0)    return `${days} ${days === 1 ? 'day' : 'days'}`
+    if (hours > 0)   return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
+    if (minutes > 0) return `${minutes} min`
+    return 'Soon'
+}
+
+// Color from string (for avatar gradient)
+const COLOR_PAIRS = [
+    ['#6366f1', '#8b5cf6'], ['#06b6d4', '#0ea5e9'], ['#16a34a', '#22c55e'],
+    ['#ea580c', '#f97316'], ['#dc2626', '#f43f5e'], ['#7c3aed', '#a855f7'],
+    ['#0891b2', '#06b6d4'], ['#be185d', '#ec4899'],
+]
+const gradientForString = (str) => {
     let h = 0
     const s = String(str || '?')
     for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
-    return COLOR_PALETTE[Math.abs(h) % COLOR_PALETTE.length]
+    const [c1, c2] = COLOR_PAIRS[Math.abs(h) % COLOR_PAIRS.length]
+    return `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`
 }
 
 // ══════════════════════════════════════════════════════════
@@ -113,35 +151,58 @@ const TaskPagination = ({ currentPage, totalPages, totalItems, from, to, onPageC
 }
 
 // ══════════════════════════════════════════════════════════
-// SKELETON CARD
+// SKELETON
 // ══════════════════════════════════════════════════════════
 
 const SkeletonCard = () => (
-    <div className="col-xl-4 col-lg-6 col-md-6 col-12 mb-3">
-        <div className="card border h-100">
-            <div className="card-body">
+    <div className="col-xl-4 col-lg-6 col-md-6 col-12 mb-4">
+        <div className="card border-0 shadow-sm h-100" style={{ borderRadius: 14 }}>
+            <div className="placeholder-glow" style={{ height: 5, background: '#e5e7eb', borderTopLeftRadius: 14, borderTopRightRadius: 14 }} />
+            <div className="card-body p-4">
                 <div className="d-flex align-items-start gap-3 mb-3">
-                    <div className="placeholder-glow">
-                        <span className="placeholder bg-secondary rounded-2" style={{ width: 48, height: 48, display: 'block' }} />
-                    </div>
-                    <div className="flex-grow-1 placeholder-glow">
-                        <span className="placeholder bg-secondary rounded mb-2" style={{ width: '70%', height: 14, display: 'block' }} />
-                        <span className="placeholder bg-secondary rounded" style={{ width: '50%', height: 11, display: 'block' }} />
+                    <span className="placeholder bg-secondary rounded-3" style={{ width: 52, height: 52, display: 'inline-block' }} />
+                    <div className="flex-grow-1">
+                        <span className="placeholder bg-secondary rounded mb-2" style={{ width: '60%', height: 14, display: 'block' }} />
+                        <span className="placeholder bg-secondary rounded" style={{ width: '40%', height: 11, display: 'block' }} />
                     </div>
                 </div>
-                <div className="placeholder-glow mb-2">
-                    <span className="placeholder bg-secondary rounded" style={{ width: '100%', height: 10, display: 'block' }} />
+                <span className="placeholder bg-secondary rounded mb-3" style={{ width: '100%', height: 30, display: 'block' }} />
+                <div className="d-flex gap-2 mb-3">
+                    <span className="placeholder bg-secondary rounded" style={{ width: 70, height: 22, display: 'inline-block' }} />
+                    <span className="placeholder bg-secondary rounded" style={{ width: 90, height: 22, display: 'inline-block' }} />
                 </div>
-                <div className="placeholder-glow mb-3">
-                    <span className="placeholder bg-secondary rounded" style={{ width: '80%', height: 10, display: 'block' }} />
-                </div>
-                <div className="d-flex gap-2 placeholder-glow">
-                    <span className="placeholder bg-secondary rounded" style={{ width: 60, height: 22, display: 'block' }} />
-                    <span className="placeholder bg-secondary rounded" style={{ width: 80, height: 22, display: 'block' }} />
-                </div>
+                <span className="placeholder bg-secondary rounded" style={{ width: '100%', height: 6, display: 'block' }} />
             </div>
         </div>
     </div>
+)
+
+// ══════════════════════════════════════════════════════════
+// SUMMARY STAT (top-of-page)
+// ══════════════════════════════════════════════════════════
+
+const StatBlock = ({ icon: Icon, label, value, color, bg, active, onClick }) => (
+    <button type="button"
+        onClick={onClick}
+        className="border-0 text-start position-relative p-3 rounded-3 w-100 h-100"
+        style={{
+            background: active ? bg : '#fff',
+            border: `1px solid ${active ? color : '#e5e7eb'} !important`,
+            boxShadow: active ? `0 0 0 3px ${bg}` : 'none',
+            transition: 'all 0.15s ease',
+            cursor: 'pointer',
+        }}>
+        <div className="d-flex align-items-center justify-content-between">
+            <div>
+                <div className="fs-11 text-muted fw-medium mb-1" style={{ letterSpacing: 0.3 }}>{label.toUpperCase()}</div>
+                <div className="fw-bold" style={{ fontSize: 22, lineHeight: 1, color: active ? color : '#111' }}>{value}</div>
+            </div>
+            <div className="d-flex align-items-center justify-content-center rounded-2 flex-shrink-0"
+                style={{ width: 38, height: 38, background: bg }}>
+                <Icon size={18} style={{ color }} />
+            </div>
+        </div>
+    </button>
 )
 
 // ══════════════════════════════════════════════════════════
@@ -151,18 +212,18 @@ const SkeletonCard = () => (
 const ViewTasks = ({ title = 'Tasks' }) => {
     const { refreshKey, isRemoved, isExpanded, handleRefresh, handleExpand, handleDelete: handleCardDelete } = useCardTitleActions()
 
-    const [tasks,      setTasks]      = useState(null)
-    const [loading,    setLoading]    = useState(true)
+    const [tasks, setTasks]           = useState(null)
+    const [loading, setLoading]       = useState(true)
     const [fetchError, setFetchError] = useState('')
 
-    const [deletingId, setDeletingId] = useState(null)
+    const [deletingId, setDeletingId]         = useState(null)
     const [activeDropdown, setActiveDropdown] = useState(null)
 
-    const [searchQuery, setSearchQuery] = useState('')
-    const [statusFilter, setStatusFilter] = useState('all')   // all/upcoming/registration/submission/evaluation/completed
-    const [liveFilter,   setLiveFilter]   = useState('all')   // all/live/draft
+    const [searchQuery, setSearchQuery]   = useState('')
+    const [statusFilter, setStatusFilter] = useState('all')
+    const [liveFilter, setLiveFilter]     = useState('all')
+    const [currentPage, setCurrentPage]   = useState(1)
 
-    const [currentPage, setCurrentPage] = useState(1)
     const dropdownRef = useRef(null)
 
     // ── Fetch ─────────────────────────────────────────────
@@ -187,7 +248,6 @@ const ViewTasks = ({ title = 'Tasks' }) => {
     useEffect(() => { if (refreshKey) fetchTasks() }, [refreshKey])
     useEffect(() => { setCurrentPage(1) }, [searchQuery, statusFilter, liveFilter])
 
-    // Outside-click closes action dropdown
     useEffect(() => {
         if (!activeDropdown) return
         const close = (e) => {
@@ -197,43 +257,7 @@ const ViewTasks = ({ title = 'Tasks' }) => {
         return () => document.removeEventListener('mousedown', close)
     }, [activeDropdown])
 
-    // ── Filtered list ─────────────────────────────────────
-    const filteredTasks = useMemo(() => {
-        if (!tasks) return null
-        let list = tasks
-
-        // Search across title, taskNo, org, branch
-        if (searchQuery.trim()) {
-            const q = searchQuery.trim().toLowerCase()
-            list = list.filter((t) =>
-                String(t.taskTitle || '').toLowerCase().includes(q) ||
-                String(t.taskNo || '').toLowerCase().includes(q) ||
-                String(t.orgScopeName || t.organizationName || '').toLowerCase().includes(q) ||
-                String(t.branchScopeName || t.branchName || '').toLowerCase().includes(q)
-            )
-        }
-
-        // Status filter (derived)
-        if (statusFilter !== 'all') {
-            list = list.filter((t) => getTaskStatus(t).key === statusFilter)
-        }
-
-        // Live filter
-        if (liveFilter === 'live')  list = list.filter((t) => t.isLive === true)
-        if (liveFilter === 'draft') list = list.filter((t) => !t.isLive)
-
-        return list
-    }, [tasks, searchQuery, statusFilter, liveFilter])
-
-    // ── Pagination math ───────────────────────────────────
-    const totalItems = filteredTasks?.length ?? 0
-    const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
-    const safePage   = Math.min(currentPage, totalPages)
-    const from       = totalItems === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
-    const to         = Math.min(safePage * PAGE_SIZE, totalItems)
-    const pageSlice  = filteredTasks?.slice(from - 1, to) ?? []
-
-    // ── Stat counts (for the filter pills) ────────────────
+    // ── Counts ────────────────────────────────────────────
     const counts = useMemo(() => {
         if (!tasks) return null
         const c = { all: tasks.length, upcoming: 0, registration: 0, submission: 0, evaluation: 0, completed: 0, live: 0, draft: 0 }
@@ -244,6 +268,35 @@ const ViewTasks = ({ title = 'Tasks' }) => {
         })
         return c
     }, [tasks])
+
+    // ── Filtered ──────────────────────────────────────────
+    const filteredTasks = useMemo(() => {
+        if (!tasks) return null
+        let list = tasks
+
+        if (searchQuery.trim()) {
+            const q = searchQuery.trim().toLowerCase()
+            list = list.filter((t) =>
+                String(t.taskTitle || '').toLowerCase().includes(q) ||
+                String(t.taskNo || '').toLowerCase().includes(q) ||
+                String(t.orgScopeName || t.organizationName || '').toLowerCase().includes(q) ||
+                String(t.branchScopeName || t.branchName || '').toLowerCase().includes(q)
+            )
+        }
+        if (statusFilter !== 'all') list = list.filter((t) => getTaskStatus(t).key === statusFilter)
+        if (liveFilter === 'live')  list = list.filter((t) => t.isLive === true)
+        if (liveFilter === 'draft') list = list.filter((t) => !t.isLive)
+
+        return list
+    }, [tasks, searchQuery, statusFilter, liveFilter])
+
+    // ── Pagination ────────────────────────────────────────
+    const totalItems = filteredTasks?.length ?? 0
+    const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
+    const safePage   = Math.min(currentPage, totalPages)
+    const from       = totalItems === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
+    const to         = Math.min(safePage * PAGE_SIZE, totalItems)
+    const pageSlice  = filteredTasks?.slice(from - 1, to) ?? []
 
     // ── Delete ────────────────────────────────────────────
     const handleDeleteTask = async (id) => {
@@ -266,6 +319,7 @@ const ViewTasks = ({ title = 'Tasks' }) => {
     }
 
     const isAnyDeleting = deletingId !== null
+    const hasActiveFilters = searchQuery.trim() || statusFilter !== 'all' || liveFilter !== 'all'
 
     if (isRemoved) return null
 
@@ -274,112 +328,151 @@ const ViewTasks = ({ title = 'Tasks' }) => {
             <div className={`card stretch stretch-full ${isExpanded ? 'card-expand' : ''} ${refreshKey ? 'card-loading' : ''}`}>
                 {/* <CardHeader title={title} refresh={handleRefresh} remove={handleCardDelete} expanded={handleExpand} /> */}
 
-                {/* ── Search & Filter ─────────────────────── */}
-                {!loading && !fetchError && tasks && tasks.length > 0 && (
-                    <div className="card-header py-3 border-top">
-                        <div className="row align-items-center g-2 w-100">
-                            <div className="col-lg-4 col-md-6 col-12">
+                {/* ═══════ STAT TILES (clickable filters) ═══════ */}
+                {!loading && !fetchError && tasks && tasks.length > 0 && counts && (
+                    <div className="card-header py-4 border-top" style={{ background: '#fafbfc' }}>
+                        <div className="row g-2 mb-3">
+                            <div className="col-md-4 col-6">
+                                <StatBlock icon={FiLayers} label="Total" value={counts.all}
+                                    color="#4f46e5" bg="#eef2ff"
+                                    active={statusFilter === 'all'}
+                                    onClick={() => setStatusFilter('all')} />
+                            </div>
+                            <div className="col-md-4 col-6">
+                                <StatBlock icon={FiClock} label="Upcoming" value={counts.upcoming}
+                                    color={STATUS_THEMES.upcoming.color} bg={STATUS_THEMES.upcoming.bg}
+                                    active={statusFilter === 'upcoming'}
+                                    onClick={() => setStatusFilter('upcoming')} />
+                            </div>
+                            <div className="col-md-4 col-6">
+                                <StatBlock icon={FiPlayCircle} label="Reg Open" value={counts.registration}
+                                    color={STATUS_THEMES.registration.color} bg={STATUS_THEMES.registration.bg}
+                                    active={statusFilter === 'registration'}
+                                    onClick={() => setStatusFilter('registration')} />
+                            </div>
+                            <div className="col-md-4 col-6">
+                                <StatBlock icon={FiZap} label="Submission" value={counts.submission}
+                                    color={STATUS_THEMES.submission.color} bg={STATUS_THEMES.submission.bg}
+                                    active={statusFilter === 'submission'}
+                                    onClick={() => setStatusFilter('submission')} />
+                            </div>
+                            <div className="col-md-4 col-6">
+                                <StatBlock icon={FiActivity} label="Evaluating" value={counts.evaluation}
+                                    color={STATUS_THEMES.evaluation.color} bg={STATUS_THEMES.evaluation.bg}
+                                    active={statusFilter === 'evaluation'}
+                                    onClick={() => setStatusFilter('evaluation')} />
+                            </div>
+                            <div className="col-lg col-md-4 col-6">
+                                <StatBlock icon={FiCheckCircle} label="Completed" value={counts.completed}
+                                    color={STATUS_THEMES.completed.color} bg={STATUS_THEMES.completed.bg}
+                                    active={statusFilter === 'completed'}
+                                    onClick={() => setStatusFilter('completed')} />
+                            </div>
+                        </div>
+
+                        {/* Search & live filter row */}
+                        {/* <div className="row g-2 align-items-center">
+                            <div className="col-lg-5 col-md-6 col-12">
                                 <div className="position-relative">
                                     <FiSearch size={14} className="text-muted position-absolute"
-                                        style={{ left: 12, top: '50%', transform: 'translateY(-50%)' }} />
-                                    <input
-                                        type="text"
-                                        className="form-control form-control-sm ps-5 pe-5"
-                                        placeholder="Search by title, task no, org, branch..."
+                                        style={{ left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+                                    <input type="text"
+                                        className="form-control ps-5 pe-5"
+                                        placeholder="Search tasks by title, number, organization..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
+                                        style={{ borderRadius: 10, height: 40 }} />
                                     {searchQuery && (
                                         <button className="btn btn-sm position-absolute border-0 p-0"
-                                            style={{ right: 10, top: '50%', transform: 'translateY(-50%)' }}
+                                            style={{ right: 12, top: '50%', transform: 'translateY(-50%)' }}
                                             onClick={() => setSearchQuery('')}>
-                                            <FiX size={14} className="text-muted" />
+                                            <FiX size={15} className="text-muted" />
                                         </button>
                                     )}
                                 </div>
                             </div>
 
-                            {/* Status pills */}
-                            <div className="col-lg-6 col-md-12 d-flex gap-1 flex-wrap">
+                            <div className="col-lg-5 col-md-6 col-12 d-flex gap-2 flex-wrap align-items-center">
+                                <span className="fs-12 text-muted fw-medium">Status:</span>
                                 {[
-                                    { key: 'all',          label: 'All' },
-                                    { key: 'upcoming',     label: 'Upcoming' },
-                                    { key: 'registration', label: 'Reg Open' },
-                                    { key: 'submission',   label: 'Submission' },
-                                    { key: 'evaluation',   label: 'Evaluating' },
-                                    { key: 'completed',    label: 'Completed' },
-                                ].map((f) => (
-                                    <button key={f.key}
-                                        className={`btn btn-xs ${statusFilter === f.key ? 'btn-primary' : 'btn-outline-secondary'}`}
-                                        style={{ fontSize: '0.7rem', padding: '2px 8px' }}
-                                        onClick={() => setStatusFilter(f.key)}>
-                                        {f.label}
-                                        {counts && counts[f.key] !== undefined && (
-                                            <span className="ms-1 opacity-75">({counts[f.key] || 0})</span>
-                                        )}
-                                    </button>
-                                ))}
+                                    { key: 'all',   label: 'All',         icon: null },
+                                    { key: 'live',  label: 'Live',        icon: FiPlayCircle },
+                                    { key: 'draft', label: 'Draft',       icon: FiPauseCircle },
+                                ].map((f) => {
+                                    const Icon = f.icon
+                                    return (
+                                        <button key={f.key}
+                                            className={`btn btn-sm d-flex align-items-center gap-1 ${liveFilter === f.key ? 'btn-dark' : 'btn-outline-secondary'}`}
+                                            style={{ borderRadius: 8, fontSize: '0.78rem', padding: '4px 12px' }}
+                                            onClick={() => setLiveFilter(f.key)}>
+                                            {Icon && <Icon size={12} />}
+                                            <span>{f.label}</span>
+                                        </button>
+                                    )
+                                })}
                             </div>
 
-                            {/* Add task */}
-                            <div className="col-lg-2 col-md-6 col-12 text-end">
-                                <Link href="/add-task" className="btn btn-sm btn-primary">
-                                    <FiPlus size={14} className="me-1" />Add Task
+                            <div className="col-lg-2 col-md-12 col-12 text-lg-end">
+                                <Link href="/add-task" className="btn btn-primary d-inline-flex align-items-center gap-1"
+                                    style={{ borderRadius: 8 }}>
+                                    <FiPlus size={15} />Add Task
                                 </Link>
                             </div>
-                        </div>
+                        </div> */}
 
-                        
+                        {/* {hasActiveFilters && (
+                            <div className="mt-2">
+                                <button className="btn btn-sm btn-link text-decoration-none p-0 fs-12"
+                                    onClick={() => { setSearchQuery(''); setStatusFilter('all'); setLiveFilter('all') }}>
+                                    ✕ Clear all filters
+                                </button>
+                            </div>
+                        )} */}
                     </div>
                 )}
 
-                {/* ── Body ────────────────────────────────── */}
-                <div className="card-body">
+                {/* ═══════ BODY ═══════ */}
+                <div className="card-body" style={{ background: '#fafbfc', minHeight: 300 }}>
 
-                    {/* Loading skeleton */}
                     {loading && (
-                        <div className="row">
-                            {[1,2,3,4,5,6].map((i) => <SkeletonCard key={i} />)}
-                        </div>
+                        <div className="row">{[1,2,3,4,5,6].map((i) => <SkeletonCard key={i} />)}</div>
                     )}
 
-                    {/* Error */}
                     {!loading && fetchError && (
                         <div className="d-flex flex-column align-items-center justify-content-center py-5">
-                            <div className="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger bg-opacity-10 mb-3" style={{ width: 56, height: 56 }}>
-                                <FiAlertCircle size={24} className="text-danger" />
+                            <div className="d-inline-flex align-items-center justify-content-center rounded-circle bg-danger bg-opacity-10 mb-3" style={{ width: 64, height: 64 }}>
+                                <FiAlertCircle size={28} className="text-danger" />
                             </div>
-                            <h6 className="fw-bold mb-1 fs-13">Failed to load tasks</h6>
-                            <p className="text-muted fs-12 mb-3 text-center" style={{ maxWidth: 320 }}>{fetchError}</p>
-                            <button className="btn btn-sm btn-primary d-flex align-items-center" onClick={fetchTasks}>
-                                <FiRefreshCw size={13} className="me-1" /> Try Again
+                            <h6 className="fw-bold mb-1">Failed to load tasks</h6>
+                            <p className="text-muted fs-13 mb-3 text-center" style={{ maxWidth: 340 }}>{fetchError}</p>
+                            <button className="btn btn-primary d-flex align-items-center" onClick={fetchTasks}>
+                                <FiRefreshCw size={14} className="me-1" /> Try Again
                             </button>
                         </div>
                     )}
 
-                    {/* Empty */}
                     {!loading && !fetchError && (!tasks || tasks.length === 0) && (
                         <div className="d-flex flex-column align-items-center justify-content-center py-5">
-                            <div className="d-inline-flex align-items-center justify-content-center rounded-circle bg-primary bg-opacity-10 mb-3" style={{ width: 56, height: 56 }}>
-                                <FiAward size={24} className="text-primary" />
+                            <div className="d-inline-flex align-items-center justify-content-center rounded-3 mb-3"
+                                style={{ width: 72, height: 72, background: 'linear-gradient(135deg, #ddd6fe 0%, #e9d5ff 100%)' }}>
+                                <FiAward size={32} style={{ color: '#7c3aed' }} />
                             </div>
-                            <h6 className="fw-bold mb-1 fs-13">No tasks yet</h6>
-                            <p className="text-muted fs-12 mb-3">Get started by creating your first task.</p>
-                            <Link href="/add-task" className="btn btn-sm btn-primary d-flex align-items-center">
-                                <FiPlus size={13} className="me-1" /> Add Task
+                            <h5 className="fw-bold mb-1">No tasks yet</h5>
+                            <p className="text-muted fs-13 mb-3">Get started by creating your first task.</p>
+                            <Link href="/add-task" className="btn btn-primary d-flex align-items-center">
+                                <FiPlus size={14} className="me-1" /> Create Your First Task
                             </Link>
                         </div>
                     )}
 
-                    {/* No results */}
                     {!loading && !fetchError && tasks && tasks.length > 0 && pageSlice.length === 0 && (
                         <div className="d-flex flex-column align-items-center justify-content-center py-5">
-                            <FiSearch size={28} className="text-muted mb-3" />
-                            <h6 className="fw-bold mb-1 fs-13">No tasks match your filters</h6>
-                            <p className="text-muted fs-12 mb-3 text-center" style={{ maxWidth: 340 }}>
-                                Try clearing filters or changing your search query.
+                            <FiSearch size={32} className="text-muted mb-3" />
+                            <h6 className="fw-bold mb-1">No tasks match your filters</h6>
+                            <p className="text-muted fs-13 mb-3 text-center" style={{ maxWidth: 340 }}>
+                                Try adjusting your search or filters.
                             </p>
-                            <button className="btn btn-sm btn-outline-primary"
+                            <button className="btn btn-outline-primary"
                                 onClick={() => { setSearchQuery(''); setStatusFilter('all'); setLiveFilter('all') }}>
                                 Clear all filters
                             </button>
@@ -392,57 +485,84 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                             {pageSlice.map((task) => {
                                 const isThisDeleting = deletingId === task._id
                                 const status = getTaskStatus(task)
-                                const avatarColor = colorForString(task.taskTitle)
+                                const StatusIcon = status.icon
+                                const avatarGradient = gradientForString(task.taskTitle)
 
-                                // Registration progress (registered / eligible)
                                 const registered = task.registeredCount ?? task.studentsRegistered ?? 0
-                                const eligible   = task.eligibleCount   ?? task.totalEligibleStudents ?? 0
-                                const progressPct = eligible > 0
-                                    ? Math.min(100, Math.round((registered / eligible) * 100))
-                                    : 0
+                                const eligible   = task.eligibleCount ?? task.totalEligibleStudents ?? 0
+                                const progressPct = eligible > 0 ? Math.min(100, Math.round((registered / eligible) * 100)) : 0
 
                                 return (
-                                    <div key={task._id} className="col-xl-4 col-lg-6 col-md-6 col-12 mb-3"
+                                    <div key={task._id} className="col-xl-4 col-lg-6 col-md-6 col-12 mb-4"
                                         style={{
-                                            opacity: isAnyDeleting && !isThisDeleting ? 0.5 : 1,
+                                            opacity: isAnyDeleting && !isThisDeleting ? 0.4 : 1,
                                             transition: 'opacity 0.2s ease',
                                         }}>
-                                        <div className="card border h-100 position-relative" style={{ overflow: 'visible' }}>
-                                            <div className="card-body">
+                                        <div className="card border-0 h-100 position-relative"
+                                            style={{
+                                                borderRadius: 14,
+                                                overflow: 'visible',
+                                                boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)',
+                                                transition: 'all 0.2s ease',
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.transform = 'translateY(-2px)'
+                                                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.08), 0 4px 8px rgba(0,0,0,0.05)'
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.transform = 'translateY(0)'
+                                                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)'
+                                            }}>
 
-                                                {/* Header row: avatar + title + actions */}
+                                            {/* ── Top accent strip (status color) ── */}
+                                            <div style={{
+                                                height: 4,
+                                                background: status.accent,
+                                                borderTopLeftRadius: 14,
+                                                borderTopRightRadius: 14,
+                                            }} />
+
+                                            <div className="card-body p-4">
+
+                                                {/* ── Header: avatar + title + actions ── */}
                                                 <div className="d-flex align-items-start gap-3 mb-3">
                                                     <div
-                                                        className="d-flex align-items-center justify-content-center rounded-2 flex-shrink-0 fw-bold text-white"
-                                                        style={{ width: 48, height: 48, background: avatarColor, fontSize: 18 }}>
+                                                        className="d-flex align-items-center justify-content-center rounded-3 flex-shrink-0 fw-bold text-white"
+                                                        style={{ width: 52, height: 52, background: avatarGradient, fontSize: 22, boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}>
                                                         {(task.taskTitle || '?').substring(0, 1).toUpperCase()}
                                                     </div>
                                                     <div className="flex-grow-1 min-width-0">
-                                                        <div className="d-flex align-items-center gap-1 mb-1">
-                                                            <FiHash size={11} className="text-muted" />
-                                                            <span className="fs-11 fw-medium text-muted">{task.taskNo || '—'}</span>
+                                                        <div className="d-flex align-items-center gap-2 mb-1">
+                                                            <span className="fs-11 fw-semibold text-muted" style={{ letterSpacing: 0.5 }}>
+                                                                #{task.taskNo || '—'}
+                                                            </span>
+                                                            <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#cbd5e1' }} />
                                                             {task.isLive ? (
-                                                                <span className="badge bg-soft-success text-success ms-auto fs-10">
-                                                                    <FiActivity size={9} className="me-1" />Live
+                                                                <span className="d-flex align-items-center gap-1 fs-11 fw-medium" style={{ color: '#16a34a' }}>
+                                                                    <span className="rounded-circle d-inline-block" style={{ width: 6, height: 6, background: '#16a34a', boxShadow: '0 0 0 3px rgba(22,163,74,0.2)' }} />
+                                                                    Live
                                                                 </span>
                                                             ) : (
-                                                                <span className="badge bg-soft-secondary text-secondary ms-auto fs-10">Draft</span>
+                                                                <span className="d-flex align-items-center gap-1 fs-11 fw-medium text-muted">
+                                                                    <span className="rounded-circle d-inline-block" style={{ width: 6, height: 6, background: '#94a3b8' }} />
+                                                                    Draft
+                                                                </span>
                                                             )}
                                                         </div>
-                                                        <h6 className="fw-bold mb-0 fs-13 text-truncate" title={task.taskTitle}>
+                                                        <h6 className="fw-bold mb-0 text-truncate" style={{ fontSize: 15 }}
+                                                            title={task.taskTitle}>
                                                             {task.taskTitle || 'Untitled task'}
                                                         </h6>
                                                     </div>
 
-                                                    {/* Actions menu */}
+                                                    {/* Actions */}
                                                     {isThisDeleting ? (
-                                                        <div className="flex-shrink-0">
-                                                            <RotatingLines visible height="22" width="22" color="grey" strokeWidth="5" animationDuration="0.75" />
-                                                        </div>
+                                                        <RotatingLines visible height="22" width="22" color="grey" strokeWidth="5" animationDuration="0.75" />
                                                     ) : (
                                                         <div className="position-relative flex-shrink-0"
                                                             ref={activeDropdown === task._id ? dropdownRef : null}>
                                                             <button className="btn btn-sm btn-icon"
+                                                                style={{ width: 32, height: 32, borderRadius: 8 }}
                                                                 onClick={(e) => {
                                                                     e.stopPropagation()
                                                                     setActiveDropdown((p) => p === task._id ? null : task._id)
@@ -451,8 +571,12 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                                 <FiMoreVertical size={16} />
                                                             </button>
                                                             {activeDropdown === task._id && (
-                                                                <div className="position-absolute bg-white border rounded-2 shadow-sm py-1"
-                                                                    style={{ right: 0, top: '100%', zIndex: 10, minWidth: 150 }}
+                                                                <div className="position-absolute bg-white shadow border-0 py-1"
+                                                                    style={{
+                                                                        right: 0, top: '100%', zIndex: 10, minWidth: 160,
+                                                                        borderRadius: 10,
+                                                                        boxShadow: '0 10px 25px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05)',
+                                                                    }}
                                                                     onClick={(e) => e.stopPropagation()}>
                                                                     <Link href={`/view-task/${task._id}`}
                                                                         className="dropdown-item d-flex align-items-center gap-2 px-3 py-2 fs-12">
@@ -462,6 +586,7 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                                         className="dropdown-item d-flex align-items-center gap-2 px-3 py-2 fs-12">
                                                                         <FiEdit size={13} /> Edit Task
                                                                     </Link>
+                                                                    <div className="dropdown-divider my-1" />
                                                                     <button
                                                                         className="dropdown-item d-flex align-items-center gap-2 px-3 py-2 fs-12 text-danger"
                                                                         onClick={() => handleDeleteTask(task._id)}>
@@ -473,112 +598,152 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                     )}
                                                 </div>
 
-                                                {/* Status badge + reward type */}
-                                                <div className="d-flex flex-wrap gap-2 mb-3">
-                                                    <span className={`badge bg-soft-${status.color} text-${status.color} fs-11`}>
-                                                        {status.label}
-                                                    </span>
-                                                    {task.taskRewardType && (
-                                                        <span className="badge bg-soft-primary text-primary fs-11">
-                                                            <FiAward size={10} className="me-1" />
-                                                            {task.taskRewardType === 'cash' ? 'Cash' : 'Certificate'}
+                                                {/* ── Status banner with countdown ── */}
+                                                <div className="d-flex align-items-center justify-content-between p-2 mb-3"
+                                                    style={{
+                                                        background: status.bg,
+                                                        borderRadius: 10,
+                                                        border: `1px solid ${status.color}20`,
+                                                    }}>
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <StatusIcon size={14} style={{ color: status.color }} />
+                                                        <span className="fs-12 fw-semibold" style={{ color: status.color }}>
+                                                            {status.label}
                                                         </span>
+                                                    </div>
+                                                    {status.nextDate && (
+                                                        <div className="text-end">
+                                                            <div className="fs-10 text-muted" style={{ letterSpacing: 0.3 }}>
+                                                                {status.nextLabel.toUpperCase()}
+                                                            </div>
+                                                            <div className="fs-12 fw-bold" style={{ color: status.color }}>
+                                                                {timeUntil(status.nextDate)}
+                                                            </div>
+                                                        </div>
                                                     )}
                                                 </div>
 
-                                                {/* Scope row */}
-                                                <div className="d-flex align-items-center gap-2 mb-2 fs-12 text-muted">
-                                                    <FiBriefcase size={12} className="flex-shrink-0" />
-                                                    <span className="text-truncate">
-                                                        {task.orgScopeName || task.organizationName || 'Organization scope'}
-                                                        {(task.branchScopeName || task.branchName) && (
-                                                            <span className="text-dark"> · {task.branchScopeName || task.branchName}</span>
-                                                        )}
-                                                    </span>
+                                                {/* ── Meta row: scope + reward ── */}
+                                                <div className="d-flex flex-column gap-2 mb-3">
+                                                    <div className="d-flex align-items-center gap-2 fs-12">
+                                                        <FiBriefcase size={12} className="text-muted flex-shrink-0" />
+                                                        <span className="text-truncate fw-medium">
+                                                            {task.orgScopeName || task.organizationName || '—'}
+                                                            {(task.branchScopeName || task.branchName) && (
+                                                                <span className="text-muted fw-normal"> · {task.branchScopeName || task.branchName}</span>
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                    {task.taskRewardType && (
+                                                        <div className="d-flex align-items-center gap-2 fs-12">
+                                                            <FiAward size={12} className="text-muted flex-shrink-0" />
+                                                            <span className="fw-medium">
+                                                                {task.taskRewardType === 'cash' ? 'Cash Reward' : 'Certificate Reward'}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
 
-                                                {/* Tags */}
+                                                {/* ── Tags ── */}
                                                 {Array.isArray(task.taskTags) && task.taskTags.length > 0 && (
                                                     <div className="d-flex flex-wrap gap-1 mb-3">
                                                         {task.taskTags.slice(0, 3).map((tag, i) => {
-                                                            const tagLabel = typeof tag === 'object' ? (tag.tagName || tag.name || tag.label) : tag
+                                                            const tagLabel = typeof tag === 'object' ? (tag.tagName || tag.TagName || tag.name || tag.label) : tag
                                                             const tagColor = typeof tag === 'object' ? tag.color : null
                                                             return (
-                                                                <span key={i} className="badge fs-10"
+                                                                <span key={i} className="d-inline-flex align-items-center gap-1 px-2 py-1"
                                                                     style={{
-                                                                        background: tagColor ? `${tagColor}20` : '#eef2ff',
+                                                                        background: tagColor ? `${tagColor}15` : '#eef2ff',
                                                                         color: tagColor || '#4f46e5',
                                                                         fontWeight: 500,
+                                                                        fontSize: 10,
+                                                                        borderRadius: 6,
                                                                     }}>
-                                                                    <FiTag size={9} className="me-1" />{tagLabel}
+                                                                    <FiTag size={9} />{tagLabel}
                                                                 </span>
                                                             )
                                                         })}
                                                         {task.taskTags.length > 3 && (
-                                                            <span className="badge bg-soft-secondary text-secondary fs-10">
-                                                                +{task.taskTags.length - 3}
+                                                            <span className="px-2 py-1" style={{
+                                                                background: '#f1f5f9', color: '#64748b',
+                                                                fontWeight: 500, fontSize: 10, borderRadius: 6,
+                                                            }}>
+                                                                +{task.taskTags.length - 3} more
                                                             </span>
                                                         )}
                                                     </div>
                                                 )}
 
-                                                {/* Registration progress */}
-                                                {eligible > 0 && (
-                                                    <div className="mb-3">
-                                                        <div className="d-flex justify-content-between align-items-center mb-1">
-                                                            <span className="fs-11 text-muted d-flex align-items-center gap-1">
+                                                {/* ── Registration progress ── */}
+                                                {eligible > 0 ? (
+                                                    <div className="p-3 mb-3" style={{ background: '#f8fafc', borderRadius: 10 }}>
+                                                        <div className="d-flex justify-content-between align-items-center mb-2">
+                                                            <span className="fs-11 text-muted d-flex align-items-center gap-1 fw-medium">
                                                                 <FiUsers size={11} />Registrations
                                                             </span>
-                                                            <span className="fs-11 fw-semibold">
-                                                                {registered} <span className="text-muted">/ {eligible}</span>
+                                                            <span className="fs-12 fw-bold">
+                                                                {registered}<span className="text-muted fw-normal"> / {eligible}</span>
+                                                                <span className="ms-2 fs-11 text-muted">({progressPct}%)</span>
                                                             </span>
                                                         </div>
-                                                        <div className="progress" style={{ height: 5 }}>
-                                                            <div
-                                                                className={`progress-bar bg-${progressPct > 70 ? 'success' : progressPct > 30 ? 'primary' : 'warning'}`}
-                                                                role="progressbar"
-                                                                style={{ width: `${progressPct}%` }}
-                                                                aria-valuenow={progressPct}
-                                                                aria-valuemin={0}
-                                                                aria-valuemax={100}
-                                                            />
+                                                        <div style={{ height: 6, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden' }}>
+                                                            <div style={{
+                                                                height: '100%',
+                                                                width: `${progressPct}%`,
+                                                                background: progressPct > 70 ? 'linear-gradient(90deg, #16a34a, #22c55e)'
+                                                                    : progressPct > 30 ? 'linear-gradient(90deg, #2563eb, #3b82f6)'
+                                                                    : 'linear-gradient(90deg, #d97706, #f59e0b)',
+                                                                borderRadius: 99,
+                                                                transition: 'width 0.3s ease',
+                                                            }} />
                                                         </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-2 mb-3 fs-11 text-muted text-center" style={{ background: '#f8fafc', borderRadius: 10 }}>
+                                                        <FiUsers size={11} className="me-1" />No registration data
                                                     </div>
                                                 )}
 
-                                                {/* Date timeline */}
-                                                <div className="border-top pt-3" style={{ fontSize: '0.75rem' }}>
-                                                    <div className="row g-2">
-                                                        <div className="col-6">
-                                                            <div className="d-flex align-items-center gap-1 text-muted mb-1">
-                                                                <FiClock size={10} />
-                                                                <span style={{ fontSize: '0.65rem' }}>LIVE FROM</span>
-                                                            </div>
-                                                            <div className="fw-medium">{formatDate(task.taskRegistrationLiveFrom)}</div>
+                                                {/* ── Date timeline ── */}
+                                                <div className="row g-2 pt-3" style={{ borderTop: '1px dashed #e2e8f0' }}>
+                                                    <div className="col-6">
+                                                        <div className="d-flex align-items-center gap-1 mb-1">
+                                                            <FiPlayCircle size={10} className="text-muted" />
+                                                            <span className="text-muted" style={{ fontSize: 9, letterSpacing: 0.5 }}>LIVE FROM</span>
                                                         </div>
-                                                        <div className="col-6">
-                                                            <div className="d-flex align-items-center gap-1 text-muted mb-1">
-                                                                <FiCalendar size={10} />
-                                                                <span style={{ fontSize: '0.65rem' }}>REG ENDS</span>
-                                                            </div>
-                                                            <div className="fw-medium">{formatDate(task.taskRegistrationDeadline)}</div>
+                                                        <div className="fw-semibold" style={{ fontSize: 11 }}>
+                                                            {formatDate(task.taskRegistrationLiveFrom)}
                                                         </div>
-                                                        <div className="col-6">
-                                                            <div className="d-flex align-items-center gap-1 text-muted mb-1">
-                                                                <FiCalendar size={10} />
-                                                                <span style={{ fontSize: '0.65rem' }}>SUBMIT BY</span>
-                                                            </div>
-                                                            <div className="fw-medium">{formatDate(task.taskSubmissionDeadline)}</div>
+                                                    </div>
+                                                    <div className="col-6">
+                                                        <div className="d-flex align-items-center gap-1 mb-1">
+                                                            <FiCalendar size={10} className="text-muted" />
+                                                            <span className="text-muted" style={{ fontSize: 9, letterSpacing: 0.5 }}>REG ENDS</span>
                                                         </div>
-                                                        <div className="col-6">
-                                                            <div className="d-flex align-items-center gap-1 text-muted mb-1">
-                                                                <FiCheckCircle size={10} />
-                                                                <span style={{ fontSize: '0.65rem' }}>RESULTS</span>
-                                                            </div>
-                                                            <div className="fw-medium">{formatDate(task.taskResultDeadline)}</div>
+                                                        <div className="fw-semibold" style={{ fontSize: 11 }}>
+                                                            {formatDate(task.taskRegistrationDeadline)}
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-6">
+                                                        <div className="d-flex align-items-center gap-1 mb-1">
+                                                            <FiZap size={10} className="text-muted" />
+                                                            <span className="text-muted" style={{ fontSize: 9, letterSpacing: 0.5 }}>SUBMIT BY</span>
+                                                        </div>
+                                                        <div className="fw-semibold" style={{ fontSize: 11 }}>
+                                                            {formatDate(task.taskSubmissionDeadline)}
+                                                        </div>
+                                                    </div>
+                                                    <div className="col-6">
+                                                        <div className="d-flex align-items-center gap-1 mb-1">
+                                                            <FiCheckCircle size={10} className="text-muted" />
+                                                            <span className="text-muted" style={{ fontSize: 9, letterSpacing: 0.5 }}>RESULTS</span>
+                                                        </div>
+                                                        <div className="fw-semibold" style={{ fontSize: 11 }}>
+                                                            {formatDate(task.taskResultDeadline)}
                                                         </div>
                                                     </div>
                                                 </div>
+
                                             </div>
                                         </div>
                                     </div>
@@ -588,17 +753,12 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                     )}
                 </div>
 
-                {/* Pagination footer */}
+                {/* Footer */}
                 {!loading && !fetchError && tasks && tasks.length > 0 && pageSlice.length > 0 && (
-                    <div className="card-footer py-3">
+                    <div className="card-footer py-3" style={{ background: '#fff' }}>
                         <TaskPagination
-                            currentPage={safePage}
-                            totalPages={totalPages}
-                            totalItems={totalItems}
-                            from={from}
-                            to={to}
-                            onPageChange={(p) => setCurrentPage(p)}
-                        />
+                            currentPage={safePage} totalPages={totalPages} totalItems={totalItems}
+                            from={from} to={to} onPageChange={(p) => setCurrentPage(p)} />
                     </div>
                 )}
 
