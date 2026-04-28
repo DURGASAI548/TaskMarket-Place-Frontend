@@ -57,15 +57,15 @@ const STATUS_THEMES = {
 
 const getTaskStatus = (task) => {
     const now = new Date()
-    const liveFrom  = task.taskRegistrationLiveFrom ? new Date(task.taskRegistrationLiveFrom) : null
-    const regEnd    = task.taskRegistrationDeadline ? new Date(task.taskRegistrationDeadline) : null
-    const subEnd    = task.taskSubmissionDeadline   ? new Date(task.taskSubmissionDeadline)   : null
-    const resultEnd = task.taskResultDeadline       ? new Date(task.taskResultDeadline)       : null
+    const liveFrom = task.taskRegistrationLiveFrom ? new Date(task.taskRegistrationLiveFrom) : null
+    const regEnd = task.taskRegistrationDeadline ? new Date(task.taskRegistrationDeadline) : null
+    const subEnd = task.taskSubmissionDeadline ? new Date(task.taskSubmissionDeadline) : null
+    const resultEnd = task.taskResultDeadline ? new Date(task.taskResultDeadline) : null
 
-    if (liveFrom && now < liveFrom)   return { key: 'upcoming',     ...STATUS_THEMES.upcoming,     nextDate: liveFrom,  nextLabel: 'Starts in' }
-    if (regEnd   && now < regEnd)     return { key: 'registration', ...STATUS_THEMES.registration, nextDate: regEnd,    nextLabel: 'Registration closes in' }
-    if (subEnd   && now < subEnd)     return { key: 'submission',   ...STATUS_THEMES.submission,   nextDate: subEnd,    nextLabel: 'Submission closes in' }
-    if (resultEnd && now < resultEnd) return { key: 'evaluation',   ...STATUS_THEMES.evaluation,   nextDate: resultEnd, nextLabel: 'Results in' }
+    if (liveFrom && now < liveFrom) return { key: 'upcoming', ...STATUS_THEMES.upcoming, nextDate: liveFrom, nextLabel: 'Starts in' }
+    if (regEnd && now < regEnd) return { key: 'registration', ...STATUS_THEMES.registration, nextDate: regEnd, nextLabel: 'Registration closes in' }
+    if (subEnd && now < subEnd) return { key: 'submission', ...STATUS_THEMES.submission, nextDate: subEnd, nextLabel: 'Submission closes in' }
+    if (resultEnd && now < resultEnd) return { key: 'evaluation', ...STATUS_THEMES.evaluation, nextDate: resultEnd, nextLabel: 'Results in' }
     return { key: 'completed', ...STATUS_THEMES.completed, nextDate: null, nextLabel: '' }
 }
 
@@ -75,15 +75,22 @@ const timeUntil = (date) => {
     const diff = new Date(date) - new Date()
     if (diff <= 0) return 'Now'
     const minutes = Math.floor(diff / 60000)
-    const hours   = Math.floor(minutes / 60)
-    const days    = Math.floor(hours / 24)
-    if (days > 0)    return `${days} ${days === 1 ? 'day' : 'days'}`
-    if (hours > 0)   return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
+    const hours = Math.floor(minutes / 60)
+    const days = Math.floor(hours / 24)
+    if (days > 0) return `${days} ${days === 1 ? 'day' : 'days'}`
+    if (hours > 0) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
     if (minutes > 0) return `${minutes} min`
     return 'Soon'
 }
 
 // Color from string (for avatar gradient)
+const BADGE_COLOR_PAIRS = [
+    'badge bg-soft-primary text-primary', 'badge bg-soft-warning text-warning', 'badge bg-soft-success text-success', 'badge bg-soft-danger text-danger', 'badge bg-soft-info text-info'
+]
+const getRandomColorPair = () => {
+    const index = Math.floor(Math.random() * BADGE_COLOR_PAIRS.length);
+    return BADGE_COLOR_PAIRS[index];
+};
 const COLOR_PAIRS = [
     ['#6366f1', '#8b5cf6'], ['#06b6d4', '#0ea5e9'], ['#16a34a', '#22c55e'],
     ['#ea580c', '#f97316'], ['#dc2626', '#f43f5e'], ['#7c3aed', '#a855f7'],
@@ -118,7 +125,7 @@ const TaskPagination = ({ currentPage, totalPages, totalItems, from, to, onPageC
 
     const pages = buildPages()
     const isFirst = currentPage === 1
-    const isLast  = currentPage === totalPages
+    const isLast = currentPage === totalPages
 
     return (
         <div className="d-flex flex-column flex-sm-row align-items-center justify-content-between gap-3 w-100">
@@ -212,17 +219,17 @@ const StatBlock = ({ icon: Icon, label, value, color, bg, active, onClick }) => 
 const ViewTasks = ({ title = 'Tasks' }) => {
     const { refreshKey, isRemoved, isExpanded, handleRefresh, handleExpand, handleDelete: handleCardDelete } = useCardTitleActions()
 
-    const [tasks, setTasks]           = useState(null)
-    const [loading, setLoading]       = useState(true)
+    const [tasks, setTasks] = useState(null)
+    const [loading, setLoading] = useState(true)
     const [fetchError, setFetchError] = useState('')
 
-    const [deletingId, setDeletingId]         = useState(null)
+    const [deletingId, setDeletingId] = useState(null)
     const [activeDropdown, setActiveDropdown] = useState(null)
 
-    const [searchQuery, setSearchQuery]   = useState('')
+    const [searchQuery, setSearchQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState('all')
-    const [liveFilter, setLiveFilter]     = useState('all')
-    const [currentPage, setCurrentPage]   = useState(1)
+    const [liveFilter, setLiveFilter] = useState('all')
+    const [currentPage, setCurrentPage] = useState(1)
 
     const dropdownRef = useRef(null)
 
@@ -284,7 +291,7 @@ const ViewTasks = ({ title = 'Tasks' }) => {
             )
         }
         if (statusFilter !== 'all') list = list.filter((t) => getTaskStatus(t).key === statusFilter)
-        if (liveFilter === 'live')  list = list.filter((t) => t.isLive === true)
+        if (liveFilter === 'live') list = list.filter((t) => t.isLive === true)
         if (liveFilter === 'draft') list = list.filter((t) => !t.isLive)
 
         return list
@@ -293,10 +300,10 @@ const ViewTasks = ({ title = 'Tasks' }) => {
     // ── Pagination ────────────────────────────────────────
     const totalItems = filteredTasks?.length ?? 0
     const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE))
-    const safePage   = Math.min(currentPage, totalPages)
-    const from       = totalItems === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
-    const to         = Math.min(safePage * PAGE_SIZE, totalItems)
-    const pageSlice  = filteredTasks?.slice(from - 1, to) ?? []
+    const safePage = Math.min(currentPage, totalPages)
+    const from = totalItems === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1
+    const to = Math.min(safePage * PAGE_SIZE, totalItems)
+    const pageSlice = filteredTasks?.slice(from - 1, to) ?? []
 
     // ── Delete ────────────────────────────────────────────
     const handleDeleteTask = async (id) => {
@@ -331,38 +338,33 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                 {/* ═══════ STAT TILES (clickable filters) ═══════ */}
                 {!loading && !fetchError && tasks && tasks.length > 0 && counts && (
                     <div className="card-header py-4 border-top" style={{ background: '#fafbfc' }}>
-                        <div className="row g-2 mb-3">
-                            <div className="col-md-4 col-6">
+                        <div className="row g-2 mb-3 col-12">
+                            <div className="col-md-3 col-6">
                                 <StatBlock icon={FiLayers} label="Total" value={counts.all}
                                     color="#4f46e5" bg="#eef2ff"
                                     active={statusFilter === 'all'}
                                     onClick={() => setStatusFilter('all')} />
                             </div>
-                            <div className="col-md-4 col-6">
+                            <div className="col-md-3 col-6">
                                 <StatBlock icon={FiClock} label="Upcoming" value={counts.upcoming}
                                     color={STATUS_THEMES.upcoming.color} bg={STATUS_THEMES.upcoming.bg}
                                     active={statusFilter === 'upcoming'}
                                     onClick={() => setStatusFilter('upcoming')} />
                             </div>
-                            <div className="col-md-4 col-6">
+                            <div className="col-md-3 col-6">
                                 <StatBlock icon={FiPlayCircle} label="Reg Open" value={counts.registration}
                                     color={STATUS_THEMES.registration.color} bg={STATUS_THEMES.registration.bg}
                                     active={statusFilter === 'registration'}
                                     onClick={() => setStatusFilter('registration')} />
                             </div>
-                            <div className="col-md-4 col-6">
-                                <StatBlock icon={FiZap} label="Submission" value={counts.submission}
-                                    color={STATUS_THEMES.submission.color} bg={STATUS_THEMES.submission.bg}
-                                    active={statusFilter === 'submission'}
-                                    onClick={() => setStatusFilter('submission')} />
-                            </div>
-                            <div className="col-md-4 col-6">
+
+                            <div className="col-md-3 col-6">
                                 <StatBlock icon={FiActivity} label="Evaluating" value={counts.evaluation}
                                     color={STATUS_THEMES.evaluation.color} bg={STATUS_THEMES.evaluation.bg}
                                     active={statusFilter === 'evaluation'}
                                     onClick={() => setStatusFilter('evaluation')} />
                             </div>
-                            <div className="col-lg col-md-4 col-6">
+                            <div className="col-md-3 col-6">
                                 <StatBlock icon={FiCheckCircle} label="Completed" value={counts.completed}
                                     color={STATUS_THEMES.completed.color} bg={STATUS_THEMES.completed.bg}
                                     active={statusFilter === 'completed'}
@@ -435,7 +437,7 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                 <div className="card-body" style={{ background: '#fafbfc', minHeight: 300 }}>
 
                     {loading && (
-                        <div className="row">{[1,2,3,4,5,6].map((i) => <SkeletonCard key={i} />)}</div>
+                        <div className="row">{[1, 2, 3, 4, 5, 6].map((i) => <SkeletonCard key={i} />)}</div>
                     )}
 
                     {!loading && fetchError && (
@@ -489,7 +491,7 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                 const avatarGradient = gradientForString(task.taskTitle)
 
                                 const registered = task.registeredCount ?? task.studentsRegistered ?? 0
-                                const eligible   = task.eligibleCount ?? task.totalEligibleStudents ?? 0
+                                const eligible = task.eligibleCount ?? task.totalEligibleStudents ?? 0
                                 const progressPct = eligible > 0 ? Math.min(100, Math.round((registered / eligible) * 100)) : 0
 
                                 return (
@@ -504,24 +506,7 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                 overflow: 'visible',
                                                 boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)',
                                                 transition: 'all 0.2s ease',
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(-2px)'
-                                                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0,0,0,0.08), 0 4px 8px rgba(0,0,0,0.05)'
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.transform = 'translateY(0)'
-                                                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06)'
                                             }}>
-
-                                            {/* ── Top accent strip (status color) ── */}
-                                            <div style={{
-                                                height: 4,
-                                                background: status.accent,
-                                                borderTopLeftRadius: 14,
-                                                borderTopRightRadius: 14,
-                                            }} />
-
                                             <div className="card-body p-4">
 
                                                 {/* ── Header: avatar + title + actions ── */}
@@ -562,13 +547,14 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                         <div className="position-relative flex-shrink-0"
                                                             ref={activeDropdown === task._id ? dropdownRef : null}>
                                                             <button className="btn btn-sm btn-icon"
-                                                                style={{ width: 32, height: 32, borderRadius: 8 }}
+                                                                style={{ height: 32, borderRadius: 8 }}
                                                                 onClick={(e) => {
                                                                     e.stopPropagation()
                                                                     setActiveDropdown((p) => p === task._id ? null : task._id)
                                                                 }}
                                                                 disabled={isAnyDeleting}>
-                                                                <FiMoreVertical size={16} />
+                                                                <FiMoreVertical size={15} />
+
                                                             </button>
                                                             {activeDropdown === task._id && (
                                                                 <div className="position-absolute bg-white shadow border-0 py-1"
@@ -578,6 +564,7 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                                         boxShadow: '0 10px 25px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05)',
                                                                     }}
                                                                     onClick={(e) => e.stopPropagation()}>
+
                                                                     <Link href={`/view-task/${task._id}`}
                                                                         className="dropdown-item d-flex align-items-center gap-2 px-3 py-2 fs-12">
                                                                         <FiEye size={13} /> View Details
@@ -598,36 +585,14 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                     )}
                                                 </div>
 
-                                                {/* ── Status banner with countdown ── */}
-                                                <div className="d-flex align-items-center justify-content-between p-2 mb-3"
-                                                    style={{
-                                                        background: status.bg,
-                                                        borderRadius: 10,
-                                                        border: `1px solid ${status.color}20`,
-                                                    }}>
-                                                    <div className="d-flex align-items-center gap-2">
-                                                        <StatusIcon size={14} style={{ color: status.color }} />
-                                                        <span className="fs-12 fw-semibold" style={{ color: status.color }}>
-                                                            {status.label}
-                                                        </span>
-                                                    </div>
-                                                    {status.nextDate && (
-                                                        <div className="text-end">
-                                                            <div className="fs-10 text-muted" style={{ letterSpacing: 0.3 }}>
-                                                                {status.nextLabel.toUpperCase()}
-                                                            </div>
-                                                            <div className="fs-12 fw-bold" style={{ color: status.color }}>
-                                                                {timeUntil(status.nextDate)}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
+
 
                                                 {/* ── Meta row: scope + reward ── */}
-                                                <div className="d-flex flex-column gap-2 mb-3">
+                                                <div className="d-flex flex-wrap justify-content-between gap-2 mb-3">
                                                     <div className="d-flex align-items-center gap-2 fs-12">
                                                         <FiBriefcase size={12} className="text-muted flex-shrink-0" />
                                                         <span className="text-truncate fw-medium">
+                                                            {console.log(task)}
                                                             {task.orgScopeName || task.organizationName || '—'}
                                                             {(task.branchScopeName || task.branchName) && (
                                                                 <span className="text-muted fw-normal"> · {task.branchScopeName || task.branchName}</span>
@@ -644,6 +609,13 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                     )}
                                                 </div>
 
+
+
+
+
+
+
+
                                                 {/* ── Tags ── */}
                                                 {Array.isArray(task.taskTags) && task.taskTags.length > 0 && (
                                                     <div className="d-flex flex-wrap gap-1 mb-3">
@@ -651,15 +623,16 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                             const tagLabel = typeof tag === 'object' ? (tag.tagName || tag.TagName || tag.name || tag.label) : tag
                                                             const tagColor = typeof tag === 'object' ? tag.color : null
                                                             return (
-                                                                <span key={i} className="d-inline-flex align-items-center gap-1 px-2 py-1"
+                                                                <span key={i} className={`d-inline-flex align-items-center gap-2 px-2 py-2 ${getRandomColorPair()}`}
                                                                     style={{
-                                                                        background: tagColor ? `${tagColor}15` : '#eef2ff',
-                                                                        color: tagColor || '#4f46e5',
-                                                                        fontWeight: 500,
-                                                                        fontSize: 10,
+                                                                        // background: tagColor ? `${tagColor}15` : '#eef2ff',
+                                                                        // background:getRandomColorPair(),
+                                                                        // color: getRandomColorPair(),
+                                                                        // fontWeight: 500,
+                                                                        // fontSize: 10,
                                                                         borderRadius: 6,
                                                                     }}>
-                                                                    <FiTag size={9} />{tagLabel}
+                                                                    <FiTag size={10} />{tagLabel}
                                                                 </span>
                                                             )
                                                         })}
@@ -673,7 +646,55 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                         )}
                                                     </div>
                                                 )}
+                                                <div className="d-flex align-items-center justify-content-between p-2 mb-3"
+                                                    style={{
+                                                        // background: status.bg,
+                                                        borderRadius: 10,
+                                                        border: `1px solid ${status.color}20`,
+                                                    }}>
+                                                    <div className="d-flex flex-column gap-2">
+                                                        <div className='d-flex gap-2 align-items-center my-2'>
+                                                            <StatusIcon size={14} style={{ color: status.color }} />
+                                                            <span className="fs-13 fw-semibold">
+                                                                Task Description
+                                                            </span>
+                                                        </div>
+                                                        <div className="fs-12" style={{ textAlign: "justify" }}>
+                                                            {task.taskDescription
+                                                                ? task.taskDescription.length > 300
+                                                                    ? task.taskDescription.slice(0, 300) + "..."
+                                                                    : task.taskDescription
+                                                                : "NO Description"}
+                                                        </div>
+                                                    </div>
 
+                                                </div>
+
+
+                                                {/* ── Status banner with countdown ── */}
+                                                <div className="d-flex align-items-center justify-content-between p-2 mb-3"
+                                                    style={{
+                                                        // background: status.bg,
+                                                        borderRadius: 10,
+                                                        border: `1px solid ${status.color}20`,
+                                                    }}>
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <StatusIcon size={14} style={{ color: status.color }} />
+                                                        <span className="fs-12 fw-semibold">
+                                                            {status.label}
+                                                        </span>
+                                                    </div>
+                                                    {status.nextDate && (
+                                                        <div className="text-end d-flex align-items-center gap-2">
+                                                            <div className="fs-10 text-muted" style={{ letterSpacing: 0.3 }}>
+                                                                {status.nextLabel.toUpperCase()}
+                                                            </div>
+                                                            <div className="fs-12 fw-bold" style={{ color: status.color }}>
+                                                                {timeUntil(status.nextDate)}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                                 {/* ── Registration progress ── */}
                                                 {eligible > 0 ? (
                                                     <div className="p-3 mb-3" style={{ background: '#f8fafc', borderRadius: 10 }}>
@@ -692,7 +713,7 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                                 width: `${progressPct}%`,
                                                                 background: progressPct > 70 ? 'linear-gradient(90deg, #16a34a, #22c55e)'
                                                                     : progressPct > 30 ? 'linear-gradient(90deg, #2563eb, #3b82f6)'
-                                                                    : 'linear-gradient(90deg, #d97706, #f59e0b)',
+                                                                        : 'linear-gradient(90deg, #d97706, #f59e0b)',
                                                                 borderRadius: 99,
                                                                 transition: 'width 0.3s ease',
                                                             }} />
@@ -708,38 +729,38 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                 <div className="row g-2 pt-3" style={{ borderTop: '1px dashed #e2e8f0' }}>
                                                     <div className="col-6">
                                                         <div className="d-flex align-items-center gap-1 mb-1">
-                                                            <FiPlayCircle size={10} className="text-muted" />
-                                                            <span className="text-muted" style={{ fontSize: 9, letterSpacing: 0.5 }}>LIVE FROM</span>
+                                                            <FiPlayCircle size={12} className="text-muted" />
+                                                            <span className="text-muted" style={{ fontSize: 12, letterSpacing: 0.5 }}>LIVE FROM</span>
                                                         </div>
                                                         <div className="fw-semibold" style={{ fontSize: 11 }}>
-                                                            {formatDate(task.taskRegistrationLiveFrom)}
+                                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{formatDate(task.taskRegistrationLiveFrom)}
                                                         </div>
                                                     </div>
                                                     <div className="col-6">
                                                         <div className="d-flex align-items-center gap-1 mb-1">
-                                                            <FiCalendar size={10} className="text-muted" />
-                                                            <span className="text-muted" style={{ fontSize: 9, letterSpacing: 0.5 }}>REG ENDS</span>
+                                                            <FiCalendar size={12} className="text-muted" color={'red'} />
+                                                            <span className="text-muted" style={{ fontSize: 12, letterSpacing: 0.5 }}>REG ENDS</span>
                                                         </div>
                                                         <div className="fw-semibold" style={{ fontSize: 11 }}>
-                                                            {formatDate(task.taskRegistrationDeadline)}
+                                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{formatDate(task.taskRegistrationDeadline)}
                                                         </div>
                                                     </div>
                                                     <div className="col-6">
                                                         <div className="d-flex align-items-center gap-1 mb-1">
-                                                            <FiZap size={10} className="text-muted" />
-                                                            <span className="text-muted" style={{ fontSize: 9, letterSpacing: 0.5 }}>SUBMIT BY</span>
+                                                            <FiZap size={12} className="text-muted" />
+                                                            <span className="text-muted" style={{ fontSize: 12, letterSpacing: 0.5 }}>SUBMIT BY</span>
                                                         </div>
                                                         <div className="fw-semibold" style={{ fontSize: 11 }}>
-                                                            {formatDate(task.taskSubmissionDeadline)}
+                                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{formatDate(task.taskSubmissionDeadline)}
                                                         </div>
                                                     </div>
                                                     <div className="col-6">
                                                         <div className="d-flex align-items-center gap-1 mb-1">
-                                                            <FiCheckCircle size={10} className="text-muted" />
-                                                            <span className="text-muted" style={{ fontSize: 9, letterSpacing: 0.5 }}>RESULTS</span>
+                                                            <FiCheckCircle size={12} className="text-muted" />
+                                                            <span className="text-muted" style={{ fontSize: 12, letterSpacing: 0.5 }}>RESULTS</span>
                                                         </div>
                                                         <div className="fw-semibold" style={{ fontSize: 11 }}>
-                                                            {formatDate(task.taskResultDeadline)}
+                                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{formatDate(task.taskResultDeadline)}
                                                         </div>
                                                     </div>
                                                 </div>
