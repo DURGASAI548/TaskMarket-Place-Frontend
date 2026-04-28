@@ -230,23 +230,44 @@ const DropdownField = ({ label, options, loading, loadingText, selectedValue, to
     </div>
 )
 
-const DatePickerField = ({ label, fieldKey, value, touched, error, onChange, onBlur, disabled, minDate, placeholder = 'Select date & time', required = true }) => (
-    <div className="mb-4">
-        <label className="form-label fw-semibold d-block">
-            {label} {required && <span className="text-danger">*</span>}
-        </label>
-        <div className="position-relative">
-            <FiCalendar size={15} className="text-muted position-absolute" style={{ left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1, pointerEvents: 'none' }} />
-            <DatePicker selected={value}
-                onChange={(date) => { onChange(fieldKey, date); onBlur(fieldKey) }}
-                showTimeSelect dateFormat="MMM d, yyyy h:mm aa"
-                placeholderText={placeholder} showPopperArrow={false} minDate={minDate}
-                className={`form-control ps-5 ${touched ? (error ? 'is-invalid' : '') : ''}`}
-                wrapperClassName="w-100" disabled={disabled} popperPlacement="bottom-start" />
+const DatePickerField = ({ label, fieldKey, value, touched, error, onChange, onBlur, disabled, minDate, placeholder = 'Select date & time', required = true }) => {
+    // ── Compute time bounds when minDate is on the same day as `value` ──
+    // react-datepicker only honours minDate at the calendar-day level — to
+    // block earlier times on the *same* day, we must also pass minTime.
+    let minTime, maxTime
+    if (minDate) {
+        const isSameDay =
+            value &&
+            value.getFullYear() === minDate.getFullYear() &&
+            value.getMonth()    === minDate.getMonth() &&
+            value.getDate()     === minDate.getDate()
+
+        if (isSameDay || !value) {
+            minTime = minDate
+            maxTime = new Date(minDate)
+            maxTime.setHours(23, 59, 59, 999)
+        }
+    }
+
+    return (
+        <div className="mb-4">
+            <label className="form-label fw-semibold d-block">
+                {label} {required && <span className="text-danger">*</span>}
+            </label>
+            <div className="position-relative">
+                <FiCalendar size={15} className="text-muted position-absolute" style={{ left: 12, top: '50%', transform: 'translateY(-50%)', zIndex: 1, pointerEvents: 'none' }} />
+                <DatePicker selected={value}
+                    onChange={(date) => { onChange(fieldKey, date); onBlur(fieldKey) }}
+                    showTimeSelect dateFormat="MMM d, yyyy h:mm aa"
+                    placeholderText={placeholder} showPopperArrow={false}
+                    minDate={minDate} minTime={minTime} maxTime={maxTime}
+                    className={`form-control ps-5 ${touched ? (error ? 'is-invalid' : '') : ''}`}
+                    wrapperClassName="w-100" disabled={disabled} popperPlacement="bottom-start" />
+            </div>
+            {touched && error && <div className="invalid-feedback d-block">{error}</div>}
         </div>
-        {touched && error && <div className="invalid-feedback d-block">{error}</div>}
-    </div>
-)
+    )
+}
 
 const SectionDivider = ({ icon: Icon, title, subtitle }) => (
     <div className="d-flex align-items-center mb-4 mt-2">
@@ -425,6 +446,37 @@ const AddTask = () => {
         setForm((prev) => ({ ...prev, branchScope: null, evaluators: [] }))
     }, [form.orgScope, orgWithBranches])
 
+    // ── Cascading date validation ─────────────────────────
+    // If an upstream date moves past a downstream one, clear
+    // the downstream value so the user must re-pick.
+    useEffect(() => {
+        setForm((prev) => {
+            const next = { ...prev }
+            let changed = false
+
+            if (next.taskRegistrationLiveFrom && next.taskRegistrationDeadline &&
+                next.taskRegistrationDeadline < next.taskRegistrationLiveFrom) {
+                next.taskRegistrationDeadline = null
+                changed = true
+            }
+            if (next.taskRegistrationDeadline && next.taskSubmissionDeadline &&
+                next.taskSubmissionDeadline < next.taskRegistrationDeadline) {
+                next.taskSubmissionDeadline = null
+                changed = true
+            }
+            if (next.taskSubmissionDeadline && next.taskResultDeadline &&
+                next.taskResultDeadline < next.taskSubmissionDeadline) {
+                next.taskResultDeadline = null
+                changed = true
+            }
+            return changed ? next : prev
+        })
+    }, [
+        form.taskRegistrationLiveFrom,
+        form.taskRegistrationDeadline,
+        form.taskSubmissionDeadline,
+    ])
+
 
     useEffect(() => {
         const n = Number(form.taskRewardNo)
@@ -537,6 +589,21 @@ const AddTask = () => {
 
         const newErrors = {}
         Object.keys(validators).forEach((k) => { newErrors[k] = validators[k](form[k]) })
+
+        // ── Cross-field date order validation ─────────────
+        if (form.taskRegistrationLiveFrom && form.taskRegistrationDeadline &&
+            form.taskRegistrationDeadline < form.taskRegistrationLiveFrom) {
+            newErrors.taskRegistrationDeadline = 'Must be after Registration Live From'
+        }
+        if (form.taskRegistrationDeadline && form.taskSubmissionDeadline &&
+            form.taskSubmissionDeadline < form.taskRegistrationDeadline) {
+            newErrors.taskSubmissionDeadline = 'Must be after Registration Deadline'
+        }
+        if (form.taskSubmissionDeadline && form.taskResultDeadline &&
+            form.taskResultDeadline < form.taskSubmissionDeadline) {
+            newErrors.taskResultDeadline = 'Must be after Submission Deadline'
+        }
+
         setErrors(newErrors)
 
         const rewardNo = Number(form.taskRewardNo)
