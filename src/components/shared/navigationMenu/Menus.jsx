@@ -1,17 +1,66 @@
 'use client'
-import React, { Fragment, useEffect, useState } from "react";
+import React, { Fragment, useEffect, useMemo, useState } from "react";
 import { FiChevronRight } from "react-icons/fi";
 import { menuList } from "@/utils/fackData/menuList";
 import getIcon from "@/utils/getIcon";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+// ── ADJUST THIS PATH to wherever your useAuthStore lives ──
+import { useAuthStore } from "@/store/useAuthStore";
+
+// ─────────────────────────────────────────────────────────────
+//  Filter the menu by role.
+//  - Drops top-level items the role can't see
+//  - Drops submenu items the role can't see
+//  - Drops a top-level item entirely if all its submenus get
+//    filtered out (so we never render an empty dropdown)
+//  - Items without a `roles` array are visible to everyone
+// ─────────────────────────────────────────────────────────────
+const filterMenuByRole = (list, role) => {
+    if (!role) return []
+    return list
+        .filter((m) => !m.roles || m.roles.includes(role))
+        .map((m) => {
+            if (Array.isArray(m.dropdownMenu)) {
+                return {
+                    ...m,
+                    dropdownMenu: m.dropdownMenu.filter(
+                        (sub) => !sub.roles || sub.roles.includes(role)
+                    ),
+                }
+            }
+            return m
+        })
+        .filter(
+            (m) => !Array.isArray(m.dropdownMenu) || m.dropdownMenu.length > 0
+        )
+}
 
 const Menus = () => {
     const [openDropdown, setOpenDropdown] = useState(null);
     const [openSubDropdown, setOpenSubDropdown] = useState(null);
     const [activeParent, setActiveParent] = useState("");
     const [activeChild, setActiveChild] = useState("");
+    const [hydrated, setHydrated] = useState(false);
     const pathName = usePathname();
+
+    // Read role straight from Zustand. Reactive — auto-updates
+    // on login / logout / role change.
+    const role = useAuthStore((state) => state.user.role);
+
+    // Zustand `persist` rehydrates from localStorage on the
+    // client *after* the first server-rendered paint. Wait for
+    // the post-mount effect before showing menu items so the
+    // server and client first-paint match (no hydration warning,
+    // no flash of unauthorized menus).
+    useEffect(() => {
+        setHydrated(true);
+    }, []);
+
+    const visibleMenu = useMemo(
+        () => (hydrated ? filterMenuByRole(menuList, role) : []),
+        [hydrated, role]
+    );
 
     const handleMainMenu = (e, name) => {
         if (openDropdown === name) {
@@ -20,7 +69,6 @@ const Menus = () => {
             setOpenDropdown(name);
         }
     };
-
     const handleDropdownMenu = (e, name) => {
         e.stopPropagation();
         if (openSubDropdown === name) {
@@ -29,7 +77,6 @@ const Menus = () => {
             setOpenSubDropdown(name);
         }
     };
-
     useEffect(() => {
         if (pathName !== "/") {
             const x = pathName.split("/");
@@ -42,10 +89,9 @@ const Menus = () => {
             setOpenDropdown("dashboards");
         }
     }, [pathName]);
-
     return (
         <>
-            {menuList.map(({ dropdownMenu, id, name, path, icon }) => {
+            {visibleMenu.map(({ dropdownMenu, id, name, path, icon }) => {
                 return (
                     <li
                         key={id}
@@ -121,5 +167,4 @@ const Menus = () => {
         </>
     );
 };
-
 export default Menus;

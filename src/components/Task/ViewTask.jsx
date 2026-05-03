@@ -565,7 +565,7 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                                     }}
                                                                     onClick={(e) => e.stopPropagation()}>
 
-                                                                    <Link href={`/view-task/${task._id}`}
+                                                                    <Link href={`/view-tasks-by-id/${task._id}`}
                                                                         className="dropdown-item d-flex align-items-center gap-2 px-3 py-2 fs-12">
                                                                         <FiEye size={13} /> View Details
                                                                     </Link>
