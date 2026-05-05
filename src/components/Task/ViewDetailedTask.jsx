@@ -166,7 +166,7 @@ const filenameFromUrl = (url) => {
 
 const getRegistrationState = ({ task, isRegistered }) => {
     if (!task) return { canRegister: false, label: 'Loading…', sublabel: '', tone: 'secondary' }
-
+        console.log(isRegistered)
     if (isRegistered) return {
         canRegister: false, tone: 'success',
         label: '✓ Registered',
@@ -320,10 +320,15 @@ const ViewTaskDetails = () => {
                 `${process.env.NEXT_PUBLIC_API_URL}/api/get-task-by-id/${id}`,
                 { withCredentials: true }
             )
-            if (res?.data?.success && res?.data?.data) {
-                setTask(res.data.data)
-                // Backend can include this — falls back to false if absent
-                setIsRegistered(Boolean(res.data.data.isRegistered))
+            // Accept either { success, data: {...} } or the raw task object —
+            // ensures `isRegistered` lands in state regardless of envelope shape
+            console.log(res)
+            const taskObj = res?.data?.data || res?.data
+            if (taskObj && (taskObj._id || taskObj.taskNo)) {
+                setTask(taskObj)
+                // `isRegistered` sits at the response root (sibling of `data`),
+                // but fall back to a nested location if the backend ever moves it
+                setIsRegistered(Boolean(res?.data?.isRegistered ?? taskObj.isRegistered))
             } else {
                 setErrorMsg(res?.data?.message || 'Task not found')
             }
@@ -477,7 +482,7 @@ const ViewTaskDetails = () => {
                                 )}
                             </div>
                             <h4 className="fw-bold mb-2" style={{ color: '#0f172a' }}>
-                                {task.taskTitle.toUpperCase()}
+                                {task.taskTitle?.toUpperCase()}
                             </h4>
                             <p className="text-muted mb-3" style={{ lineHeight: 1.6 }}>
                                 {task.taskDescription}
@@ -507,7 +512,10 @@ const ViewTaskDetails = () => {
                         <button
                             type="button"
                             onClick={handleRegister}
-                            disabled={!regState.canRegister || registering}
+                            // Only physically disable when actually waiting on a click,
+                            // or when the state is "secondary" (closed / inactive / not yet open).
+                            // The success state stays vivid green via the style overrides below.
+                            disabled={registering || (!regState.canRegister && regState.tone === 'secondary')}
                             className={`btn fw-semibold d-inline-flex align-items-center justify-content-center gap-2 ${
                                 regState.tone === 'success' ? 'btn-success' :
                                 regState.tone === 'primary' ? 'btn-primary' :
@@ -515,6 +523,10 @@ const ViewTaskDetails = () => {
                             }`}
                             style={{
                                 padding: '10px 24px', borderRadius: 10, minWidth: 220,
+                                ...(regState.tone === 'success' && {
+                                    cursor: 'default',
+                                    opacity: 1,
+                                }),
                                 ...(regState.tone === 'secondary' && {
                                     background: '#f8fafc',
                                     border: '1px solid #e2e8f0',

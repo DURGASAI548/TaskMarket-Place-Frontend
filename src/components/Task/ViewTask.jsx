@@ -569,7 +569,7 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                                                                         className="dropdown-item d-flex align-items-center gap-2 px-3 py-2 fs-12">
                                                                         <FiEye size={13} /> View Details
                                                                     </Link>
-                                                                    <Link href={`/edit-task/${task._id}`}
+                                                                    <Link href={`/edit-tasks/${task._id}`}
                                                                         className="dropdown-item d-flex align-items-center gap-2 px-3 py-2 fs-12">
                                                                         <FiEdit size={13} /> Edit Task
                                                                     </Link>

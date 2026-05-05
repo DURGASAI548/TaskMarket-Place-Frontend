@@ -2,10 +2,11 @@
 import React from 'react'
 import Select from 'react-select'
 const MultiSelectTags = ({ options, defaultSelect, onChange, placeholder }) => {
+    console.log(defaultSelect)
     return (
         <Select
-            defaultValue={defaultSelect}
             isMulti
+            defaultValue={defaultSelect}
             name="tags"
             placeholder={placeholder}
             options={options}
