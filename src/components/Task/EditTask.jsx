@@ -144,7 +144,6 @@ const keys = Object.keys(initialForm)
 const createTouched = () => keys.reduce((a, k) => ({ ...a, [k]: false }), {})
 const createErrors  = () => keys.reduce((a, k) => ({ ...a, [k]: '' }), {})
 
-// Safe Date conversion — backend dates arrive as ISO strings
 const toDate = (v) => {
     if (!v) return null
     const d = new Date(v)
@@ -160,7 +159,8 @@ const filenameFromUrl = (url) => {
 }
 
 // ══════════════════════════════════════════════════════════
-// FIELD PRIMITIVES — identical to AddTask
+// FIELD PRIMITIVES — defined outside component so they don't
+// remount on every parent render
 // ══════════════════════════════════════════════════════════
 
 const InputRow = ({ label, icon: Icon, fieldKey, type = 'text', inputRef, placeholder, maxLength, value, touched, error, onChange, onBlur, disabled, required = true, min, max }) => (
@@ -203,6 +203,45 @@ const TextAreaRow = ({ label, fieldKey, rows = 4, placeholder, maxLength, value,
     </div>
 )
 
+// IMPORTANT: defined OUTSIDE the component so React doesn't remount
+// the SelectDropdown on every parent re-render
+const DropdownField = ({ label, options, loading, loadingText, selectedValue, touched, error, fieldKey, onSelect, hint, required = true ,defaultValue }) => {
+    const selected = options.find((o) => o.value === selectedValue) || null
+    console.log(defaultValue)
+    return (
+        <div className="mb-4">
+            <label className="form-label fw-semibold">
+                {label}{' '}
+                {required
+                    ? <span className="text-danger">*</span>
+                    : <span className="text-muted fs-11 ms-1">(optional)</span>
+                }
+            </label>
+            {loading ? (
+                <div className="d-flex align-items-center py-2">
+                    <RotatingLines visible height="22" width="22" color="blue" strokeWidth="5" animationDuration="0.75" />
+                    <span className="text-muted fs-13 ms-2">{loadingText}</span>
+                </div>
+            ) : (
+                <>
+                    {/* Force a remount when the prefilled value first arrives.
+                        Some SelectDropdown implementations only read selectedOption
+                        on mount; keying by value guarantees the prefill shows. */}
+                    <SelectDropdown
+                    // defaultSelect
+                        key={`${fieldKey}-${selectedValue ?? 'none'}`}
+                        options={options}
+                        selectedOption={selected}
+                        defaultSelect={selected?.label || ''}
+                        onSelectOption={(option) => onSelect(fieldKey, option)}
+                    />
+                    {hint && !error && options.length === 0 && <div className="text-muted fs-11 mt-1">{hint}</div>}
+                    {touched && error && <div className="invalid-feedback d-block">{error}</div>}
+                </>
+            )}
+        </div>
+    )
+}
 
 const DatePickerField = ({ label, fieldKey, value, touched, error, onChange, onBlur, disabled, minDate, placeholder = 'Select date & time', required = true }) => {
     let minTime, maxTime
@@ -274,37 +313,6 @@ const SwitchField = ({ label, subtitle, checked, onChange, disabled, icon: Icon 
 // ══════════════════════════════════════════════════════════
 
 const EditTask = () => {
-    const DropdownField = ({ label, options, loading, loadingText, selectedValue, touched, error, fieldKey, onSelect, hint, required = true, defaultValue}) => (
-    
-    <div className="mb-4">
-        {console.log(defaultValue)}
-        <label className="form-label fw-semibold">
-            {label}{' '}
-            {required
-                ? <span className="text-danger">*</span>
-                : <span className="text-muted fs-11 ms-1">(optional)</span>
-            }
-        </label>
-        {loading ? (
-            <div className="d-flex align-items-center py-2">
-                <RotatingLines visible height="22" width="22" color="blue" strokeWidth="5" animationDuration="0.75" />
-                <span className="text-muted fs-13 ms-2">{loadingText}</span>
-            </div>
-        ) : (
-            <>
-                <SelectDropdown
-                    options={options}
-                    selectedOption={options.find((o) => o.value === selectedValue) || null}
-                    defaultSelect={defaultValue}
-                    onSelectOption={(option) => onSelect(fieldKey, option)}
-                />
-                {hint && !error && options.length === 0 && <div className="text-muted fs-11 mt-1">{hint}</div>}
-                {touched && error && <div className="invalid-feedback d-block">{error}</div>}
-            </>
-        )}
-    </div>
-)
-
     const API = process.env.NEXT_PUBLIC_API_URL
     const { id } = useParams()
     const router = useRouter()
@@ -327,21 +335,20 @@ const EditTask = () => {
     const [branchOptions,       setBranchOptions]       = useState([])
     const [loadingDropdowns,    setLoadingDropdowns]    = useState(true)
 
-    const [tagOptions,        setTagOptions]        = useState([])
-    const [defaultSelectedTags , setdefaultSelectedTags] = useState([])
-    const [evaluatorOptions,  setEvaluatorOptions]  = useState([])
-    const [loadingTags,       setLoadingTags]       = useState(true)
-    const [loadingEvaluators, setLoadingEvaluators] = useState(false)
-    const [DefaultSelectedFileTypes , setDefaultSelectedFileTypes ] = useState([])
+    const [tagOptions,             setTagOptions]             = useState([])
+    const [defaultSelectedTags,    setDefaultSelectedTags]    = useState([])
+    const [evaluatorOptions,       setEvaluatorOptions]       = useState([])
+    const [defaultSelectedEvals,   setDefaultSelectedEvals]   = useState([])
+    const [defaultSelectedFiles,   setDefaultSelectedFiles]   = useState([])
+    const [loadingTags,            setLoadingTags]            = useState(true)
+    const [loadingEvaluators,      setLoadingEvaluators]      = useState(false)
+
     // Initial-load state
     const [loadingTaskData, setLoadingTaskData] = useState(true)
     const [fetchError,      setFetchError]      = useState('')
 
     const [constraintInput, setConstraintInput] = useState('')
 
-    // Original org id, used to skip the cascading reset on the very
-    // first evaluator load (otherwise the prefilled evaluators would
-    // get wiped by the org-scope effect)
     const initialOrgRef = useRef(null)
     const didPrefillRef = useRef(false)
 
@@ -351,7 +358,6 @@ const EditTask = () => {
     const firstRewardRef  = useRef(null)
 
     // ── INITIAL LOAD ──────────────────────────────────────
-    // Fetch the task + dropdowns in parallel, then prefill.
     useEffect(() => {
         if (!id) return
         const loadAll = async () => {
@@ -364,14 +370,15 @@ const EditTask = () => {
                     axios.get(`${API}/api/get-org-with-branches`,  { withCredentials: true }).catch(() => ({ data: { data: [] } })),
                     axios.get(`${API}/api/get-all-tags`,           { withCredentials: true }).catch(() => ({ data: { data: [] } })),
                 ])
-                console.log(taskRes)
 
+                // ── Orgs/branches ─────────────────────────
                 const orgData = orgRes.data?.data || []
                 setOrgWithBranches(orgData)
                 setOrganizationOptions(
                     orgData.map((o) => ({ value: o.organizationId, label: o.organizationName, img: '' }))
                 )
 
+                // ── Tags ──────────────────────────────────
                 const tagData = tagRes.data?.data || []
                 setTagOptions(
                     tagData.map((t) => ({
@@ -380,40 +387,59 @@ const EditTask = () => {
                         color: t.color || '#4f46e5',
                     }))
                 )
-                const defaulttagdata = taskRes.data?.data || []
-                console.log(defaulttagdata)
-                setdefaultSelectedTags(
-                    defaulttagdata.taskTags.map((t) => ({
-                        value: t._id || t.tagId,
-                        label: t.TagName || t.name,
-                        color: t.color || '#4f46e5',
-                    }))
-                )
-                setDefaultSelectedFileTypes(fileAcceptType)
 
                 // ── Task itself ───────────────────────────
-                // API returns either { success, data: {...} } or raw object —
-                // tolerate both shapes the same way the view screen does.
                 const task = taskRes.data?.data || taskRes.data
                 if (!task || !(task._id || task.taskNo)) {
                     throw new Error('Task not found')
                 }
 
-                // Normalize ids — backend may populate refs as objects OR
-                // send raw ids depending on the route. Handle both.
+                // Build pre-selected MultiSelectTags arrays from the populated
+                // task response (these are full objects, not just ids)
+                const taskTagsArr = Array.isArray(task.taskTags) ? task.taskTags : []
+                setDefaultSelectedTags(
+                    taskTagsArr
+                        .filter((t) => t && (typeof t === 'object'))
+                        .map((t) => ({
+                            value: t._id || t.tagId,
+                            label: t.TagName || t.name,
+                            color: t.color || '#4f46e5',
+                        }))
+                )
+
+                const fileTypesArr = Array.isArray(task.fileAcceptType) ? task.fileAcceptType : []
+                setDefaultSelectedFiles(
+                    fileTypesArr.map((ft) => {
+                        // Match against catalog so we get the correct color/label
+                        const fromCatalog = FILE_TYPE_OPTIONS.find((o) => o.value === ft)
+                        return fromCatalog || { value: ft, label: String(ft).toUpperCase(), color: '#4f46e5' }
+                    })
+                )
+
+                const evaluatorsArr = Array.isArray(task.evaluators) ? task.evaluators : []
+                setDefaultSelectedEvals(
+                    evaluatorsArr
+                        .filter((e) => e && (typeof e === 'object'))
+                        .map((e) => ({
+                            value: e._id,
+                            label: e.name || e.displayName || e.email || 'Unknown',
+                            color: '#0891b2',
+                        }))
+                )
+
+                // Normalize ids — backend may populate refs as objects OR send raw ids
                 const orgId    = task.orgScope?._id    || task.orgScope    || null
                 const branchId = task.branchScope?._id || task.branchScope || null
 
-                const tagIds = Array.isArray(task.taskTags)
-                    ? task.taskTags.map((t) => (typeof t === 'object' ? t._id : t)).filter(Boolean)
-                    : []
+                const tagIds = taskTagsArr
+                    .map((t) => (typeof t === 'object' ? t._id : t))
+                    .filter(Boolean)
 
-                const evaluatorIds = Array.isArray(task.evaluators)
-                    ? task.evaluators.map((e) => (typeof e === 'object' ? e._id : e)).filter(Boolean)
-                    : []
+                const evaluatorIds = evaluatorsArr
+                    .map((e) => (typeof e === 'object' ? e._id : e))
+                    .filter(Boolean)
 
                 // Pre-populate the matching org's branch list immediately
-                // so the branch dropdown shows the current value on render
                 if (orgId) {
                     const matched = orgData.find((o) => o.organizationId === orgId)
                     setBranchOptions(
@@ -440,7 +466,7 @@ const EditTask = () => {
                     isLive: Boolean(task.isLive),
                     taskTags: tagIds,
                     taskConstraints: Array.isArray(task.taskConstraints) ? task.taskConstraints : [],
-                    fileAcceptType: Array.isArray(task.fileAcceptType) ? task.fileAcceptType : [],
+                    fileAcceptType: fileTypesArr,
                     acceptGithubLink: Boolean(task.acceptGithubLink),
                     acceptLiveLink:   Boolean(task.acceptLiveLink),
                     branchScope: branchId,
@@ -498,8 +524,6 @@ const EditTask = () => {
     }, [form.orgScope, API])
 
     // ── BRANCH list refresh + cascading reset on org change ──
-    // CRITICAL: skip the reset during initial prefill — only reset
-    // branch/evaluators when the user actively *changes* the org.
     useEffect(() => {
         if (form.orgScope) {
             const matched = orgWithBranches.find((o) => o.organizationId === form.orgScope)
@@ -514,12 +538,12 @@ const EditTask = () => {
             setBranchOptions([])
         }
 
-        // Don't wipe the prefilled values on initial render
         if (!didPrefillRef.current) return
         if (form.orgScope === initialOrgRef.current) return
 
-        // User changed org — drop dependent fields
+        // User changed org → drop dependent fields + clear evaluator pre-selection
         setForm((prev) => ({ ...prev, branchScope: null, evaluators: [] }))
+        setDefaultSelectedEvals([])
         initialOrgRef.current = form.orgScope
     }, [form.orgScope, orgWithBranches])
 
@@ -658,7 +682,6 @@ const EditTask = () => {
         const newErrors = {}
         Object.keys(validators).forEach((k) => { newErrors[k] = validators[k](form[k]) })
 
-        // Cross-field date order
         if (form.taskRegistrationLiveFrom && form.taskRegistrationDeadline &&
             form.taskRegistrationDeadline < form.taskRegistrationLiveFrom) {
             newErrors.taskRegistrationDeadline = 'Must be after Registration Live From'
@@ -701,7 +724,6 @@ const EditTask = () => {
         if (docErr) return
 
         const fd = new FormData()
-        // taskNo & passKey are NOT sent — they're immutable on edit
         fd.append('taskTitle', form.taskTitle.trim())
         fd.append('taskDescription', form.taskDescription.trim())
         fd.append('taskSubmissionDeadline',   form.taskSubmissionDeadline.toISOString())
@@ -721,8 +743,6 @@ const EditTask = () => {
         fd.append('orgScope',    form.orgScope)
         fd.append('taskResultDeadline', form.taskResultDeadline.toISOString())
 
-        // Only attach a new file if the user actually picked one.
-        // Missing key → backend should treat as "keep existing document"
         if (taskDocFile) fd.append('taskDocument', taskDocFile)
 
         try {
@@ -789,7 +809,6 @@ const EditTask = () => {
         <div className="col-xxl-10 col-xl-11 col-12">
             <div className="card stretch stretch-full">
 
-                {/* Header */}
                 <div className="card-header">
                     <h5 className="card-title mb-0">Edit Task</h5>
                     <p className="text-muted fs-12 mb-0 mt-1">
@@ -837,10 +856,6 @@ const EditTask = () => {
                                 Task Document <span className="text-muted fs-11 ms-1">(optional)</span>
                             </label>
 
-                            {/* Three states:
-                                1. New file picked → show new file (replaces existing on save)
-                                2. Existing file present → show preview + "Replace" CTA
-                                3. Neither → show upload dropzone */}
                             {taskDocFile ? (
                                 <div className="d-flex align-items-center gap-3 p-3 border rounded-3" style={{ background: '#f8faf8' }}>
                                     <div className="d-flex align-items-center justify-content-center rounded-2 flex-shrink-0"
@@ -947,11 +962,10 @@ const EditTask = () => {
                     <SectionDivider icon={FiAward} title="Rewards" subtitle="What participants will earn" />
 
                     <div className="row">
-                        {console.log(form)}
                         <div className="col-md-6">
                             <DropdownField label="Reward Type"
                                 options={REWARD_TYPE_OPTIONS} loading={false} loadingText=""
-                                selectedValue={form.taskRewardType} touched={touched.taskRewardType} error={errors.taskRewardType} defaultValue={form.taskRewardType}
+                                selectedValue={form.taskRewardType} touched={touched.taskRewardType} error={errors.taskRewardType}
                                 fieldKey="taskRewardType" onSelect={handleDropdown} />
                         </div>
                         <div className="col-md-6">
@@ -1012,12 +1026,9 @@ const EditTask = () => {
                                 </div>
                             ) : (
                                 <>
-                                    {/* `value` prop pre-selects current tags. If your MultiSelectTags
-                                        uses `defaultValue` or `selected` instead, rename the prop. */}
                                     <MultiSelectTags
                                         defaultSelect={defaultSelectedTags}
                                         options={tagOptions}
-                                        value={form.taskTags}
                                         placeholder="Select tags..."
                                         onChange={(selected) => handleMultiSelect('taskTags', selected)} />
                                     {touched.taskTags && errors.taskTags && (
@@ -1065,9 +1076,8 @@ const EditTask = () => {
                             Accepted File Types <span className="text-danger">*</span>
                         </label>
                         <MultiSelectTags
-                            defaultSelect={[]}
+                            defaultSelect={defaultSelectedFiles}
                             options={FILE_TYPE_OPTIONS}
-                            value={form.fileAcceptType}
                             placeholder="Select file types..."
                             onChange={(selected) => handleMultiSelect('fileAcceptType', selected)} />
                         {touched.fileAcceptType && errors.fileAcceptType && (
@@ -1145,8 +1155,8 @@ const EditTask = () => {
                                     <>
                                         <MultiSelectTags
                                             key={form.orgScope}
+                                            defaultSelect={defaultSelectedEvals}
                                             options={evaluatorOptions}
-                                            value={form.evaluators}
                                             placeholder="Select evaluators..."
                                             onChange={(selected) => handleMultiSelect('evaluators', selected)}
                                         />
