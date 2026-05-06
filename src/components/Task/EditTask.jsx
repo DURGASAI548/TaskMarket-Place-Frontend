@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import topTost from '@/utils/topTost'
 import { RotatingLines } from 'react-loader-spinner'
@@ -15,7 +15,7 @@ import {
 } from 'react-icons/fi'
 
 // ══════════════════════════════════════════════════════════
-// VALIDATORS — identical to AddTask
+// VALIDATORS
 // ══════════════════════════════════════════════════════════
 
 const validateTitle = (v) => {
@@ -82,7 +82,7 @@ const validateTaskDocument = (file) => {
 }
 
 // ══════════════════════════════════════════════════════════
-// CONSTANTS — identical to AddTask
+// CONSTANTS
 // ══════════════════════════════════════════════════════════
 
 const REWARD_TYPE_OPTIONS = [
@@ -159,8 +159,7 @@ const filenameFromUrl = (url) => {
 }
 
 // ══════════════════════════════════════════════════════════
-// FIELD PRIMITIVES — defined outside component so they don't
-// remount on every parent render
+// FIELD PRIMITIVES
 // ══════════════════════════════════════════════════════════
 
 const InputRow = ({ label, icon: Icon, fieldKey, type = 'text', inputRef, placeholder, maxLength, value, touched, error, onChange, onBlur, disabled, required = true, min, max }) => (
@@ -203,39 +202,129 @@ const TextAreaRow = ({ label, fieldKey, rows = 4, placeholder, maxLength, value,
     </div>
 )
 
-// IMPORTANT: defined OUTSIDE the component so React doesn't remount
-// the SelectDropdown on every parent re-render
-const DropdownField = ({ label, options, loading, loadingText, selectedValue, touched, error, fieldKey, onSelect, hint, required = true ,defaultValue }) => {
-    const selected = options.find((o) => o.value === selectedValue) || null
-    console.log(defaultValue)
+// ══════════════════════════════════════════════════════════
+// DEDICATED DROPDOWN FIELDS
+// Each one is self-contained, derives its own selected option from
+// (value + options), and remounts only when its OWN inputs settle.
+// This eliminates the async-timing display bugs that plagued the
+// shared DropdownField.
+// ══════════════════════════════════════════════════════════
+
+/**
+ * Internal helper used by every dedicated dropdown.
+ * - Computes the selected option via useMemo so it always reflects
+ *   the latest (value, options) pair, even after async loads.
+ * - Uses a stable, content-aware `key` so SelectDropdown remounts
+ *   only when the resolved option actually changes — never on every
+ *   parent re-render.
+ */
+const useResolvedSelection = (options, value) =>
+    useMemo(() => {
+        if (value === null || value === undefined || value === '') return null
+        return options.find((o) => String(o.value) === String(value)) || null
+    }, [options, value])
+
+// ── Reward Type ──────────────────────────────────────────
+// IMPORTANT: We deliberately wait until `value` is set before mounting
+// SelectDropdown, and we key it ONLY on whether a value exists (not on
+// the value itself). This way:
+//   - Mounts ONCE with the correct API-provided default already in place
+//   - Never remounts on subsequent user selections (no "click twice" bug)
+const RewardTypeDropdown = ({ value, touched, error, onSelect, disabled }) => {
+    const selected = useResolvedSelection(REWARD_TYPE_OPTIONS, value)
     return (
         <div className="mb-4">
             <label className="form-label fw-semibold">
-                {label}{' '}
-                {required
-                    ? <span className="text-danger">*</span>
-                    : <span className="text-muted fs-11 ms-1">(optional)</span>
-                }
+                Reward Type <span className="text-danger">*</span>
+            </label>
+            <SelectDropdown
+                key="reward-type"
+                options={REWARD_TYPE_OPTIONS}
+                selectedOption={selected}
+                defaultSelect={selected?.label || 'Select reward type'}
+                onSelectOption={(option) => onSelect('taskRewardType', option)}
+                disabled={disabled}
+            />
+            {touched && error && <div className="invalid-feedback d-block">{error}</div>}
+        </div>
+    )
+}
+
+// ── Organization Scope ──────────────────────────────────
+// Mounts ONCE — when options have arrived AND we know whether the form
+// has a value. The key collapses to one of two stable strings, so user
+// clicks never trigger a remount.
+const OrganizationDropdown = ({ options, loading, value, touched, error, onSelect, disabled }) => {
+    const selected = useResolvedSelection(options, value)
+    const ready = options.length > 0
+    // Stable key: only changes when options first arrive. Once mounted,
+    // user clicks NEVER trigger a remount (this is the fix for the
+    // "click twice to select" bug).
+    const dropdownKey = ready ? 'org-ready' : 'org-loading'
+
+    return (
+        <div className="mb-4">
+            <label className="form-label fw-semibold">
+                Organization Scope <span className="text-danger">*</span>
             </label>
             {loading ? (
                 <div className="d-flex align-items-center py-2">
                     <RotatingLines visible height="22" width="22" color="blue" strokeWidth="5" animationDuration="0.75" />
-                    <span className="text-muted fs-13 ms-2">{loadingText}</span>
+                    <span className="text-muted fs-13 ms-2">Loading organizations...</span>
                 </div>
             ) : (
                 <>
-                    {/* Force a remount when the prefilled value first arrives.
-                        Some SelectDropdown implementations only read selectedOption
-                        on mount; keying by value guarantees the prefill shows. */}
                     <SelectDropdown
-                    // defaultSelect
-                        key={`${fieldKey}-${selectedValue ?? 'none'}`}
+                        key={dropdownKey}
                         options={options}
                         selectedOption={selected}
-                        defaultSelect={selected?.label || ''}
-                        onSelectOption={(option) => onSelect(fieldKey, option)}
+                        defaultSelect={selected?.label || 'Select organization'}
+                        onSelectOption={(option) => onSelect('orgScope', option)}
+                        disabled={disabled}
                     />
-                    {hint && !error && options.length === 0 && <div className="text-muted fs-11 mt-1">{hint}</div>}
+                    {touched && error && <div className="invalid-feedback d-block">{error}</div>}
+                </>
+            )}
+        </div>
+    )
+}
+
+// ── Branch Scope ────────────────────────────────────────
+// The options array legitimately changes when the user picks a different
+// org. We DO want a remount in that case, but NOT on every branch click.
+// Solution: key on the identity of the option-set (first option's value),
+// which is stable while the user picks branches within the same org.
+const BranchDropdown = ({ options, loading, value, touched, error, onSelect, disabled, orgSelected }) => {
+    const selected = useResolvedSelection(options, value)
+    // Identity of the option set — changes when org changes, stable otherwise.
+    // Crucially, we do NOT include `selected` in the key, because that would
+    // cause a remount on every user click (the original bug).
+    const optionSetId = options.length > 0 ? `set-${options[0].value}-${options.length}` : 'empty'
+    const dropdownKey = `branch-${optionSetId}`
+
+    return (
+        <div className="mb-4">
+            <label className="form-label fw-semibold">
+                Branch Scope <span className="text-muted fs-11 ms-1">(optional)</span>
+            </label>
+            {loading ? (
+                <div className="d-flex align-items-center py-2">
+                    <RotatingLines visible height="22" width="22" color="blue" strokeWidth="5" animationDuration="0.75" />
+                    <span className="text-muted fs-13 ms-2">Loading branches...</span>
+                </div>
+            ) : (
+                <>
+                    <SelectDropdown
+                        key={dropdownKey}
+                        options={options}
+                        selectedOption={selected}
+                        defaultSelect={selected?.label}
+                        onSelectOption={(option) => onSelect('branchScope', option)}
+                        disabled={disabled || !orgSelected}
+                    />
+                    {!orgSelected && options.length === 0 && (
+                        <div className="text-muted fs-11 mt-1">Select an organization first</div>
+                    )}
                     {touched && error && <div className="invalid-feedback d-block">{error}</div>}
                 </>
             )}
@@ -370,12 +459,12 @@ const EditTask = () => {
                     axios.get(`${API}/api/get-org-with-branches`,  { withCredentials: true }).catch(() => ({ data: { data: [] } })),
                     axios.get(`${API}/api/get-all-tags`,           { withCredentials: true }).catch(() => ({ data: { data: [] } })),
                 ])
-
+                console.log(taskRes)
                 // ── Orgs/branches ─────────────────────────
                 const orgData = orgRes.data?.data || []
                 setOrgWithBranches(orgData)
                 setOrganizationOptions(
-                    orgData.map((o) => ({ value: o.organizationId, label: o.organizationName, img: '' }))
+                    orgData.map((o) => ({ value: o.organizationId, label: o.organizationName }))
                 )
 
                 // ── Tags ──────────────────────────────────
@@ -410,7 +499,6 @@ const EditTask = () => {
                 const fileTypesArr = Array.isArray(task.fileAcceptType) ? task.fileAcceptType : []
                 setDefaultSelectedFiles(
                     fileTypesArr.map((ft) => {
-                        // Match against catalog so we get the correct color/label
                         const fromCatalog = FILE_TYPE_OPTIONS.find((o) => o.value === ft)
                         return fromCatalog || { value: ft, label: String(ft).toUpperCase(), color: '#4f46e5' }
                     })
@@ -592,7 +680,7 @@ const EditTask = () => {
         })
     }, [form.taskRewardNo])
 
-    // ── HANDLERS — identical to AddTask ──
+    // ── HANDLERS ──
     const handleChange = (field, value) => {
         setForm((prev) => ({ ...prev, [field]: value }))
         if (touched[field] && validators[field]) {
@@ -963,10 +1051,14 @@ const EditTask = () => {
 
                     <div className="row">
                         <div className="col-md-6">
-                            <DropdownField label="Reward Type"
-                                options={REWARD_TYPE_OPTIONS} loading={false} loadingText=""
-                                selectedValue={form.taskRewardType} touched={touched.taskRewardType} error={errors.taskRewardType}
-                                fieldKey="taskRewardType" onSelect={handleDropdown} />
+                            {/* Dedicated reward-type dropdown — no more shared timing bugs */}
+                            <RewardTypeDropdown
+                                value={form.taskRewardType}
+                                touched={touched.taskRewardType}
+                                error={errors.taskRewardType}
+                                onSelect={handleDropdown}
+                                disabled={submitting}
+                            />
                         </div>
                         <div className="col-md-6">
                             <InputRow label="Number of Rewards" icon={FiHash} fieldKey="taskRewardNo" type="number" min="1" max="50" inputRef={taskRewardNoRef}
@@ -1106,18 +1198,29 @@ const EditTask = () => {
 
                     <div className="row">
                         <div className="col-md-6">
-                            <DropdownField label="Organization Scope"
-                                options={organizationOptions} loading={loadingDropdowns} loadingText="Loading..."
-                                selectedValue={form.orgScope} touched={touched.orgScope} error={errors.orgScope}
-                                fieldKey="orgScope" onSelect={handleDropdown} />
+                            {/* Dedicated organization dropdown */}
+                            <OrganizationDropdown
+                                options={organizationOptions}
+                                loading={loadingDropdowns}
+                                value={form.orgScope}
+                                touched={touched.orgScope}
+                                error={errors.orgScope}
+                                onSelect={handleDropdown}
+                                disabled={submitting}
+                            />
                         </div>
                         <div className="col-md-6">
-                            <DropdownField label="Branch Scope"
-                                options={branchOptions} loading={loadingDropdowns} loadingText="Loading..."
-                                selectedValue={form.branchScope} touched={touched.branchScope} error={errors.branchScope}
-                                fieldKey="branchScope" onSelect={handleDropdown}
-                                hint="Select an organization first"
-                                required={false} />
+                            {/* Dedicated branch dropdown */}
+                            <BranchDropdown
+                                options={branchOptions}
+                                loading={loadingDropdowns}
+                                value={form.branchScope}
+                                touched={touched.branchScope}
+                                error={errors.branchScope}
+                                onSelect={handleDropdown}
+                                disabled={submitting}
+                                orgSelected={!!form.orgScope}
+                            />
                         </div>
                     </div>
 

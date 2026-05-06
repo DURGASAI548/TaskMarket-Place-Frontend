@@ -461,7 +461,7 @@ const ViewTasks = ({ title = 'Tasks' }) => {
                             </div>
                             <h5 className="fw-bold mb-1">No tasks yet</h5>
                             <p className="text-muted fs-13 mb-3">Get started by creating your first task.</p>
-                            <Link href="/add-task" className="btn btn-primary d-flex align-items-center">
+                            <Link href="/add-tasks" className="btn btn-primary d-flex align-items-center">
                                 <FiPlus size={14} className="me-1" /> Create Your First Task
                             </Link>
                         </div>
