@@ -131,6 +131,30 @@ export const menuList = [
             }
         ]
     },
+    {
+        id: 17,
+        name: "Evalution Points",
+        path: "#",
+        icon: 'feather-users',
+        roles: ['superAdmin', 'orgAdmin', 'branchAdmin'],
+        dropdownMenu: [
+            {
+                id: 1,
+                name: "View Evalution Points",
+                path: "/view-evalution-points",
+                subdropdownMenu: false,
+                roles: ['superAdmin', 'orgAdmin', 'branchAdmin']
+            },
+            {
+                id: 2,
+                name: "Add Evalution Points",
+                path: "/add-evalution-points",
+                subdropdownMenu: false,
+                // 'user' intentionally excluded — regular users can only view tasks
+                roles: ['superAdmin', 'orgAdmin', 'branchAdmin']
+            }
+        ]
+    }
     // {
     //     id: 0,
     //     name: "dashboards",
