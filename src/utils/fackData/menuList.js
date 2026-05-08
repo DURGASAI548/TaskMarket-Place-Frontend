@@ -91,13 +91,13 @@ export const menuList = [
         icon: 'feather-users',
         roles: ['superAdmin', 'orgAdmin', 'branchAdmin'],
         dropdownMenu: [
-            {
-                id: 1,
-                name: "View Tags",
-                path: "/view-tags",
-                subdropdownMenu: false,
-                roles: ['superAdmin', 'orgAdmin', 'branchAdmin']
-            },
+            // {
+            //     id: 1,
+            //     name: "View Tags",
+            //     path: "/view-tags",
+            //     subdropdownMenu: false,
+            //     roles: ['superAdmin', 'orgAdmin', 'branchAdmin']
+            // },
             {
                 id: 2,
                 name: "Add Tags",
@@ -135,7 +135,7 @@ export const menuList = [
         id: 17,
         name: "Evalution Points",
         path: "#",
-        icon: 'feather-users',
+        icon: 'feather-cast',
         roles: ['superAdmin', 'orgAdmin', 'branchAdmin'],
         dropdownMenu: [
             {
@@ -154,27 +154,27 @@ export const menuList = [
                 roles: ['superAdmin', 'orgAdmin', 'branchAdmin']
             }
         ]
-    }
-    // {
-    //     id: 0,
-    //     name: "dashboards",
-    //     path: "#",
-    //     icon: 'feather-airplay',
-    //     dropdownMenu: [
-    //         {
-    //             id: 1,
-    //             name: "CRM",
-    //             path: "/",
-    //             subdropdownMenu: false
-    //         },
-    //         {
-    //             id: 2,
-    //             name: "Analytics",
-    //             path: "/dashboards/analytics",
-    //             subdropdownMenu: false
-    //         }
-    //     ]
-    // },
+    },
+    {
+        id: 0,
+        name: "evalution matrix",
+        path: "#",
+        icon: 'feather-airplay',
+        dropdownMenu: [
+            {
+                id: 1,
+                name: "View Evalution Matrix",
+                path: "/view-evalution-matrix",
+                subdropdownMenu: false
+            },
+            {
+                id: 2,
+                name: "Add Evalution Matrix",
+                path: "/add-evalution-matrix",
+                subdropdownMenu: false
+            }
+        ]
+    },
     // {
     //     id: 1,
     //     name: "reports",

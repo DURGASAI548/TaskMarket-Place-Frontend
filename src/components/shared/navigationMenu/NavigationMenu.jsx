@@ -19,8 +19,8 @@ const NavigationManu = () => {
             <div className="navbar-wrapper">
                 <div className="m-header">
                     <Link href="/" className="b-brand">
-                        {/* <Image width={140} height={30} src="/images/logo-full.png" alt="logo" className="logo logo-lg" />
-                        <Image width={140} height={30} src="/images/logo-abbr.png" alt="logo" className="logo logo-sm" /> */}
+                        <Image width={140} height={30} src="/images/logo-full.png" alt="logo" className="logo logo-lg" />
+                        <Image width={140} height={30} src="/images/logo-abbr.png" alt="logo" className="logo logo-sm" />
                     </Link>
                 </div>
 
